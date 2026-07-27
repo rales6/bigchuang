@@ -1,0 +1,81 @@
+app:
+  window_name: "Qwen Grounded Tracker v2.0 CUDA"
+  single_instance_port: 39522
+  log_interval_seconds: 1.0
+  output_dir: "outputs"
+
+camera:
+  source: 1
+  width: 1280
+  height: 720
+  fps: 30
+  backend: "dshow"
+  side_by_side: "auto"
+
+qwen:
+  model_path: "models/qwen/Qwen3-VL-2B-Instruct"
+  device: "cuda"
+  local_files_only: true
+  max_new_tokens: 64
+  max_time_seconds: 30
+  min_visual_tokens: 128
+  max_visual_tokens: 512
+  minimum_box_area_ratio: 0.001
+
+tracking:
+  backend: "csrt"
+  identity_min_score: 0.32
+  identity_bad_frames: 4
+  reference_update_score: 0.78
+  auto_reground: true
+  auto_reground_after_seconds: 2.0
+  hold_after_loss_seconds: 0.6
+  template_match_threshold: 0.52
+
+boundary:
+  mode: "grabcut"
+  update_interval_frames: 2
+  grabcut_iterations: 2
+
+obstacles:
+  enabled: true
+  model_path: "models/yolo/yolo11n-seg.pt"
+  device: "0"
+  image_size: 640
+  confidence: 0.25
+  frame_interval: 1
+  stop_labels:
+    - person
+    - car
+    - motorcycle
+    - bus
+    - truck
+    - bicycle
+    - dog
+  danger_zone:
+    x1: 0.28
+    y1: 0.42
+    x2: 0.72
+    y2: 1.00
+  exclude_target_iou: 0.60
+
+lidar:
+  backend: "null"
+  require_ready: false
+  emergency_distance_m: 0.35
+  slow_distance_m: 0.70
+
+navigation:
+  enabled: true
+  center_x: 0.50
+  center_tolerance: 0.06
+  stop_area_ratio: 0.16
+  too_close_area_ratio: 0.28
+  linear_speed: 0.08
+  backward_speed: 0.04
+  angular_speed: 0.22
+
+safety:
+  stop_on_tracking_loss: true
+  stop_on_yolo_obstacle: true
+  emergency_stop_default: false

@@ -1,0 +1,5 @@
+numpy>=1.26,<3
+opencv-contrib-python>=4.9
+websocket-client>=1.8
+pyserial>=3.5
+bleak>=0.22

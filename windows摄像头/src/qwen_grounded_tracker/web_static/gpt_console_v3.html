@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Robot Vision Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1117;
+        --surface: #151922;
+        --surface2: #1d2330;
+        --surface3: #242b3a;
+        --line: #343b4c;
+        --text: #f5f7fb;
+        --muted: #9ca7b5;
+        --accent: #10a37f;
+        --accent2: #0f2a24;
+        --danger: #b94a5a;
+        --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(720px, 1.55fr) minmax(280px, 0.42fr) minmax(520px, 1fr);
+        min-width: 0;
+        min-height: 0;
+      }
+      .vision {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        background: #10141c;
+        border-right: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .topbar {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #121722;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(16px, 1.15vw, 20px);
+        letter-spacing: 0;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        background: #161b27;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+      .pill strong { color: var(--text); }
+      .video-zone {
+        min-height: 0;
+        display: grid;
+        align-content: start;
+        justify-items: center;
+        padding: clamp(10px, 1.2vw, 18px);
+        overflow: auto;
+      }
+      .video-wrap {
+        position: relative;
+        width: min(100%, 1040px);
+        max-height: calc(100vh - 74px);
+        aspect-ratio: 4 / 3;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #05060a;
+        box-shadow: var(--shadow);
+      }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        user-select: none;
+      }
+      #roiCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+      .ops {
+        min-width: 0;
+        min-height: 0;
+        border-right: 1px solid var(--line);
+        background: var(--surface);
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 14px;
+        padding: 14px;
+        overflow: auto;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .controls button {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--text);
+        background: var(--surface2);
+        font-weight: 650;
+      }
+      .controls button:hover { border-color: var(--accent); background: var(--surface3); }
+      .controls .danger {
+        background: #3a2028;
+        border-color: #743142;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .metric {
+        min-height: 58px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 9px;
+        background: #111722;
+      }
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .metric b {
+        display: block;
+        margin-top: 5px;
+        font-size: 13px;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+      .chat {
+        min-width: 0;
+        min-height: 0;
+        height: 100vh;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        background: #171b25;
+        overflow: hidden;
+      }
+      .chat-header {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        background: #151a24;
+      }
+      .chat-title {
+        min-width: 0;
+      }
+      .chat-title h2 {
+        margin: 0;
+        font-size: 17px;
+        letter-spacing: 0;
+      }
+      .chat-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .new-chat {
+        flex: 0 0 auto;
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--text);
+        background: var(--surface2);
+        padding: 0 12px;
+        font-weight: 650;
+      }
+      .new-chat:hover { border-color: var(--accent); }
+      .thread-strip {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--line);
+        background: #131821;
+      }
+      .chat-item {
+        flex: 0 0 min(230px, 70%);
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 9px 10px;
+        color: var(--text);
+        background: transparent;
+        text-align: left;
+        line-height: 1.25;
+      }
+      .chat-item:hover { background: #1d2330; }
+      .chat-item.active {
+        background: var(--surface2);
+        border-color: var(--line);
+      }
+      .chat-name {
+        display: block;
+        min-height: 18px;
+      }
+      .chat-item small {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .thread-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .thread-actions button {
+        flex: 1;
+        min-height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        background: #151a24;
+        font-size: 11px;
+      }
+      .thread-actions button:hover {
+        color: var(--text);
+        border-color: var(--accent);
+      }
+      .thread-actions .delete:hover {
+        border-color: var(--danger);
+      }
+      .messages {
+        overflow: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 20px clamp(16px, 2vw, 28px);
+      }
+      .empty {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        line-height: 1.6;
+        text-align: center;
+        padding: 18px;
+      }
+      .msg {
+        max-width: min(82%, 720px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 12px 14px;
+        background: #101722;
+        line-height: 1.58;
+        overflow-wrap: anywhere;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+      }
+      .msg.user {
+        align-self: flex-end;
+        background: var(--accent2);
+        border-color: #235c50;
+        border-bottom-right-radius: 6px;
+      }
+      .msg.assistant {
+        align-self: flex-start;
+        border-bottom-left-radius: 6px;
+      }
+      .msg .meta {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .send {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 76px;
+        gap: 10px;
+        padding: 14px 16px 16px;
+        border-top: 1px solid var(--line);
+        background: #151a24;
+      }
+      .composer {
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface2);
+        color: var(--text);
+        outline: none;
+        padding: 0 15px;
+      }
+      .composer:focus { border-color: var(--accent); }
+      .send button {
+        min-height: 48px;
+        border: 0;
+        border-radius: 16px;
+        color: #06251d;
+        background: var(--accent);
+        font-weight: 750;
+      }
+      .send button:hover { filter: brightness(1.08); }
+      @media (max-width: 1520px) {
+        .app {
+          grid-template-columns: minmax(520px, 1fr) minmax(430px, 0.85fr);
+          grid-template-rows: minmax(0, 1fr) auto;
+        }
+        .vision {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .ops {
+          grid-column: 1;
+          grid-row: 2;
+          border-top: 1px solid var(--line);
+          border-right: 1px solid var(--line);
+          grid-template-columns: minmax(260px, 0.8fr) minmax(300px, 1.2fr);
+          grid-template-rows: auto;
+          overflow: visible;
+        }
+        .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .chat {
+          grid-column: 2;
+          grid-row: 1 / 3;
+          height: 100vh;
+        }
+        .video-wrap {
+          width: min(100%, 900px);
+          max-height: calc(100vh - 238px);
+        }
+      }
+      @media (max-width: 980px) {
+        body {
+          height: auto;
+          overflow: auto;
+        }
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: none;
+          height: auto;
+          min-height: 100vh;
+        }
+        .vision {
+          grid-column: auto;
+          grid-row: auto;
+          border-right: 0;
+        }
+        .video-zone {
+          padding: 12px;
+          overflow: visible;
+        }
+        .video-wrap {
+          width: min(100%, 760px);
+          max-height: none;
+        }
+        .ops {
+          grid-column: auto;
+          grid-row: auto;
+          grid-template-columns: 1fr;
+          border-top: 1px solid var(--line);
+          border-right: 0;
+        }
+        .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .chat {
+          grid-column: auto;
+          grid-row: auto;
+          height: auto;
+          min-height: 620px;
+          border-top: 1px solid var(--line);
+        }
+        .msg { max-width: 92%; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="vision">
+        <header class="topbar">
+          <h1>Robot Vision Console</h1>
+          <span class="pill">Windows <strong id="runtime">starting</strong></span>
+          <span class="pill">3090 <strong id="remote">not connected</strong></span>
+          <span class="pill">FPS <strong id="fps">0 / 0</strong></span>
+        </header>
+
+        <div class="video-zone">
+          <div class="video-wrap" id="videoWrap">
+            <img id="video" src="/stream.mjpg" alt="camera stream" draggable="false" />
+            <canvas id="roiCanvas"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="ops">
+        <div class="controls">
+          <button type="button" data-action="reground">Run Qwen</button>
+          <button type="button" data-action="toggle_boundary">Boundary</button>
+          <button type="button" data-action="capture">Save frame</button>
+          <button type="button" data-action="reset">Clear target</button>
+          <button class="danger" type="button" data-action="toggle_estop">E-stop</button>
+          <button type="button" id="applyRoi">Apply ROI</button>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span>Target</span><b id="track">waiting</b></div>
+          <div class="metric"><span>Motion / Box</span><b><span id="direction">STOP</span> / <span id="box">none</span></b></div>
+          <div class="metric"><span>Grounding</span><b id="grounding">-</b></div>
+          <div class="metric"><span>Boundary</span><b id="boundary">-</b></div>
+          <div class="metric"><span>YOLO</span><b id="obstacles">-</b></div>
+          <div class="metric"><span>LiDAR / E-stop</span><b id="lidar">-</b></div>
+          <div class="metric"><span>Robot Task</span><b id="robotTask">idle</b></div>
+          <div class="metric"><span>Robot Command</span><b id="robotCommand">vision / idle</b></div>
+          <div class="metric"><span>Target Queue</span><b id="targetQueue">-</b></div>
+        </div>
+      </section>
+
+      <section class="chat">
+        <header class="chat-header">
+          <div class="chat-title">
+            <h2>Robot Assistant</h2>
+            <p>Saved to <span id="storePath">outputs/chat_history.json</span></p>
+          </div>
+          <button class="new-chat" id="newChat">+ New chat</button>
+        </header>
+        <div class="thread-strip" id="chatList"></div>
+        <section class="messages" id="messages"></section>
+        <form class="send" id="sendForm">
+          <input class="composer" id="message" autocomplete="off" placeholder="Type a task, e.g. 捡起垃圾扔进垃圾桶" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const els = {
+        newChat: document.querySelector("#newChat"),
+        chatList: document.querySelector("#chatList"),
+        storePath: document.querySelector("#storePath"),
+        runtime: document.querySelector("#runtime"),
+        remote: document.querySelector("#remote"),
+        fps: document.querySelector("#fps"),
+        track: document.querySelector("#track"),
+        direction: document.querySelector("#direction"),
+        box: document.querySelector("#box"),
+        grounding: document.querySelector("#grounding"),
+        boundary: document.querySelector("#boundary"),
+        obstacles: document.querySelector("#obstacles"),
+        lidar: document.querySelector("#lidar"),
+        robotTask: document.querySelector("#robotTask"),
+        robotCommand: document.querySelector("#robotCommand"),
+        targetQueue: document.querySelector("#targetQueue"),
+        messages: document.querySelector("#messages"),
+        form: document.querySelector("#sendForm"),
+        message: document.querySelector("#message"),
+        video: document.querySelector("#video"),
+        canvas: document.querySelector("#roiCanvas"),
+        videoWrap: document.querySelector("#videoWrap"),
+        applyRoi: document.querySelector("#applyRoi"),
+      };
+      let lastChatJson = "";
+      let lastConversationsJson = "";
+      let activeConversationId = "";
+      let activeVideoUrl = "/stream.mjpg";
+      let dragStart = null;
+      let roi = null;
+      let visualState = {
+        frame: { width: 0, height: 0 },
+        track: null,
+        prediction: {},
+        receivedAt: performance.now(),
+      };
+
+      async function postJson(url, payload) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return response.json();
+      }
+
+      function fitCanvas() {
+        const rect = els.videoWrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        els.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        els.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        els.canvas.style.width = rect.width + "px";
+        els.canvas.style.height = rect.height + "px";
+        drawOverlay();
+      }
+
+      function imageRect() {
+        const rect = els.canvas.getBoundingClientRect();
+        const frame = visualState.frame || {};
+        const frameW = Number(frame.width || els.video.naturalWidth || 0);
+        const frameH = Number(frame.height || els.video.naturalHeight || 0);
+        if (frameW <= 0 || frameH <= 0) {
+          return { x: 0, y: 0, width: rect.width, height: rect.height, scale: 1 };
+        }
+        const scale = Math.min(rect.width / frameW, rect.height / frameH);
+        const width = frameW * scale;
+        const height = frameH * scale;
+        return {
+          x: (rect.width - width) / 2,
+          y: (rect.height - height) / 2,
+          width,
+          height,
+          scale,
+        };
+      }
+
+      function framePointToCanvas(point, image) {
+        return {
+          x: image.x + Number(point.x || 0) * image.scale,
+          y: image.y + Number(point.y || 0) * image.scale,
+        };
+      }
+
+      function predictTrackForNow() {
+        const track = visualState.track;
+        const box = track?.bbox;
+        if (!track?.visible || !box) return null;
+        const prediction = visualState.prediction || {};
+        const localAge = Math.max(0, (performance.now() - visualState.receivedAt) / 1000);
+        const totalAge = Number(prediction.age_seconds || 0) + localAge;
+        const maxAge = 0.45;
+        const vx = Number(prediction.vx || 0);
+        const vy = Number(prediction.vy || 0);
+        const vw = Number(prediction.vw || 0);
+        const vh = Number(prediction.vh || 0);
+        const canAdvance = prediction.enabled !== false && totalAge <= maxAge;
+        const dt = canAdvance ? localAge : 0;
+        const width = Math.max(3, Number(box.width || (box.x2 - box.x1)) + vw * dt);
+        const height = Math.max(3, Number(box.height || (box.y2 - box.y1)) + vh * dt);
+        const cx = (Number(box.x1) + Number(box.x2)) / 2 + vx * dt;
+        const cy = (Number(box.y1) + Number(box.y2)) / 2 + vy * dt;
+        const nextBox = {
+          x1: cx - width / 2,
+          y1: cy - height / 2,
+          x2: cx + width / 2,
+          y2: cy + height / 2,
+          width,
+          height,
+        };
+        let contour = Array.isArray(track.contour) ? track.contour : null;
+        if (contour && dt > 0) {
+          const oldW = Math.max(1, Number(box.width || (box.x2 - box.x1)));
+          const oldH = Math.max(1, Number(box.height || (box.y2 - box.y1)));
+          contour = contour.map((point) => ({
+            x: nextBox.x1 + ((Number(point.x) - Number(box.x1)) / oldW) * width,
+            y: nextBox.y1 + ((Number(point.y) - Number(box.y1)) / oldH) * height,
+          }));
+        }
+        return { ...track, bbox: nextBox, contour, predictedAge: totalAge };
+      }
+
+      function drawPredictedTrack(ctx, image, track) {
+        if (!track?.visible || !track.bbox) return;
+        const box = track.bbox;
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = "#22c55e";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        const contour = Array.isArray(track.contour) ? track.contour : [];
+        if (contour.length >= 3) {
+          ctx.beginPath();
+          const first = framePointToCanvas(contour[0], image);
+          ctx.moveTo(first.x, first.y);
+          for (const point of contour.slice(1)) {
+            const p = framePointToCanvas(point, image);
+            ctx.lineTo(p.x, p.y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+        const p1 = framePointToCanvas({ x: box.x1, y: box.y1 }, image);
+        const p2 = framePointToCanvas({ x: box.x2, y: box.y2 }, image);
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        ctx.strokeStyle = "#fde047";
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy);
+        ctx.lineTo(cx + 8, cy);
+        ctx.moveTo(cx, cy - 8);
+        ctx.lineTo(cx, cy + 8);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawOverlay() {
+        const ctx = els.canvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const rect = els.canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        const predictedTrack = predictTrackForNow();
+        const image = imageRect();
+        drawPredictedTrack(ctx, image, predictedTrack);
+        if (!roi) return;
+        const x = Math.min(roi.x1, roi.x2);
+        const y = Math.min(roi.y1, roi.y2);
+        const w = Math.abs(roi.x2 - roi.x1);
+        const h = Math.abs(roi.y2 - roi.y1);
+        ctx.strokeStyle = "#10a37f";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = "rgba(16, 163, 127, 0.12)";
+        ctx.fillRect(x, y, w, h);
+      }
+
+      function animateOverlay() {
+        drawOverlay();
+        requestAnimationFrame(animateOverlay);
+      }
+
+      function canvasPoint(event) {
+        const rect = els.canvas.getBoundingClientRect();
+        return {
+          x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+          y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
+        };
+      }
+
+      function renderConversations(status) {
+        const conversations = status.conversations || [];
+        const json = JSON.stringify(conversations) + status.active_conversation_id;
+        if (json === lastConversationsJson) return;
+        lastConversationsJson = json;
+        activeConversationId = status.active_conversation_id || "";
+        els.chatList.innerHTML = "";
+        for (const item of conversations) {
+          const card = document.createElement("div");
+          card.className = `chat-item ${item.id === activeConversationId ? "active" : ""}`;
+          card.tabIndex = 0;
+          const name = document.createElement("span");
+          name.className = "chat-name";
+          name.textContent = item.title || "New chat";
+          const small = document.createElement("small");
+          small.textContent = item.updated_at || "";
+          const actions = document.createElement("div");
+          actions.className = "thread-actions";
+          const openButton = document.createElement("button");
+          openButton.type = "button";
+          openButton.textContent = "Continue";
+          const renameButton = document.createElement("button");
+          renameButton.type = "button";
+          renameButton.textContent = "Rename";
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "delete";
+          deleteButton.textContent = "Delete";
+          actions.append(openButton, renameButton, deleteButton);
+          card.append(name, small, actions);
+
+          const openConversation = async () => {
+            await postJson("/api/chat/select", { conversation_id: item.id });
+            lastChatJson = "";
+            lastConversationsJson = "";
+            refresh();
+          };
+          card.addEventListener("dblclick", openConversation);
+          card.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") openConversation();
+          });
+          openButton.addEventListener("click", openConversation);
+          renameButton.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            const nextTitle = window.prompt("Rename chat", item.title || "New chat");
+            if (!nextTitle || !nextTitle.trim()) return;
+            await postJson("/api/chat/rename", {
+              conversation_id: item.id,
+              title: nextTitle.trim(),
+            });
+            lastConversationsJson = "";
+            refresh();
+          });
+          deleteButton.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            const ok = window.confirm(`Delete chat "${item.title || "New chat"}"?`);
+            if (!ok) return;
+            await postJson("/api/chat/delete", { conversation_id: item.id });
+            lastChatJson = "";
+            lastConversationsJson = "";
+            refresh();
+          });
+          els.chatList.append(card);
+        }
+      }
+
+      function renderMessages(chat) {
+        const json = JSON.stringify(chat);
+        if (json === lastChatJson) return;
+        lastChatJson = json;
+        els.messages.innerHTML = "";
+        if (!chat.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "Send a task to connect to the 3090. Qwen, YOLO, and tracking start after the first instruction.";
+          els.messages.append(empty);
+          return;
+        }
+        for (const item of chat) {
+          const div = document.createElement("div");
+          div.className = `msg ${item.role === "user" ? "user" : "assistant"}`;
+          const meta = document.createElement("span");
+          meta.className = "meta";
+          meta.textContent = `${item.role === "user" ? "You" : "System"} - ${item.time || ""}`;
+          const text = document.createElement("span");
+          text.textContent = item.content;
+          div.append(meta, text);
+          els.messages.append(div);
+        }
+        els.messages.scrollTop = els.messages.scrollHeight;
+      }
+
+      async function refresh() {
+        try {
+          const status = await fetch("/api/status", { cache: "no-store" }).then((r) => r.json());
+          els.runtime.textContent = status.runtime_status;
+          els.remote.textContent = status.remote_status;
+          els.fps.textContent = `${status.local_fps || 0} / ${status.remote_fps || 0}`;
+          const nextVideoUrl = status.video_url || "/stream.mjpg";
+          if (nextVideoUrl !== activeVideoUrl) {
+            activeVideoUrl = nextVideoUrl;
+            els.video.src = nextVideoUrl;
+          }
+          visualState = {
+            frame: status.frame || visualState.frame,
+            track: status.predicted_track || status.track || null,
+            prediction: status.prediction || {},
+            receivedAt: performance.now(),
+          };
+          els.track.textContent = status.track?.status || "-";
+          els.direction.textContent = status.guidance?.direction || "STOP";
+          els.grounding.textContent = status.grounding_status;
+          els.boundary.textContent = status.boundary_mode;
+          els.obstacles.textContent = status.obstacles;
+          els.lidar.textContent = `${status.lidar} / ${status.emergency_stop}`;
+          const task = status.robot_task || {};
+          const command = status.robot_command || {};
+          els.robotTask.textContent = task.task_type && task.task_type !== "none"
+            ? `${task.task_type} / ${task.phase || "idle"}`
+            : "none";
+          els.robotCommand.textContent = `${command.subsystem || "-"} / ${command.action || "-"}`;
+          const queue = Array.isArray(status.target_queue) ? status.target_queue : [];
+          const active = queue.findIndex((item) => item.active) + 1;
+          const done = queue.filter((item) => item.status === "done").length;
+          els.targetQueue.textContent = queue.length
+            ? `active ${active || "-"} / ${queue.length}, done ${done}`
+            : "-";
+          els.storePath.textContent = status.chat_store_path || "outputs/chat_history.json";
+          const box = status.track?.bbox;
+          els.box.textContent = box
+            ? `${Math.round(box.x1)},${Math.round(box.y1)} - ${Math.round(box.x2)},${Math.round(box.y2)}`
+            : "none";
+          renderConversations(status);
+          renderMessages(status.chat || []);
+        } catch (error) {
+          els.runtime.textContent = "disconnected";
+        }
+      }
+
+      els.canvas.addEventListener("pointerdown", (event) => {
+        dragStart = canvasPoint(event);
+        roi = { x1: dragStart.x, y1: dragStart.y, x2: dragStart.x, y2: dragStart.y };
+        els.canvas.setPointerCapture(event.pointerId);
+        drawOverlay();
+      });
+      els.canvas.addEventListener("pointermove", (event) => {
+        if (!dragStart || !roi) return;
+        const p = canvasPoint(event);
+        roi.x2 = p.x;
+        roi.y2 = p.y;
+        drawOverlay();
+      });
+      els.canvas.addEventListener("pointerup", () => { dragStart = null; });
+
+      els.newChat.addEventListener("click", async () => {
+        await postJson("/api/chat/new", {});
+        lastChatJson = "";
+        lastConversationsJson = "";
+        refresh();
+      });
+
+      els.form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = els.message.value.trim();
+        if (!message) return;
+        els.message.value = "";
+        await postJson("/api/message", { message });
+        refresh();
+      });
+
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          await postJson("/api/control", { action: button.dataset.action });
+          refresh();
+        });
+      });
+
+      els.applyRoi.addEventListener("click", async () => {
+        if (!roi) return;
+        const image = imageRect();
+        const clampX = (value) => Math.min(Math.max(value, image.x), image.x + image.width);
+        const clampY = (value) => Math.min(Math.max(value, image.y), image.y + image.height);
+        const x1 = clampX(Math.min(roi.x1, roi.x2));
+        const y1 = clampY(Math.min(roi.y1, roi.y2));
+        const x2 = clampX(Math.max(roi.x1, roi.x2));
+        const y2 = clampY(Math.max(roi.y1, roi.y2));
+        if (Math.abs(x2 - x1) < 4 || Math.abs(y2 - y1) < 4) return;
+        await postJson("/api/roi", {
+          x1: (x1 - image.x) / image.width,
+          y1: (y1 - image.y) / image.height,
+          x2: (x2 - image.x) / image.width,
+          y2: (y2 - image.y) / image.height,
+        });
+        roi = null;
+        drawOverlay();
+        refresh();
+      });
+
+      window.addEventListener("resize", fitCanvas);
+      els.video.addEventListener("load", fitCanvas);
+      fitCanvas();
+      requestAnimationFrame(animateOverlay);
+      refresh();
+      setInterval(refresh, 120);
+    </script>
+  </body>
+</html>

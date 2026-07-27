@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Windows Camera Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #141b23;
+        --panel-2: #1b2530;
+        --text: #edf4f7;
+        --muted: #94a3af;
+        --line: #2d3a46;
+        --accent: #21c6a8;
+        --danger: #ff596d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+      button, input { font: inherit; }
+      .app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        height: 100vh;
+      }
+      .stage {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        min-width: 0;
+        border-right: 1px solid var(--line);
+      }
+      .topbar, .statusbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #101720;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: wrap;
+      }
+      .statusbar { border-top: 1px solid var(--line); border-bottom: 0; }
+      h1 { margin: 0; font-size: 18px; letter-spacing: 0; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 4px 9px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        color: var(--muted);
+        background: #0e141b;
+        font-size: 13px;
+      }
+      .pill strong { color: var(--text); font-weight: 600; }
+      .video-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        background: #05070a;
+        overflow: hidden;
+      }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        user-select: none;
+      }
+      #roiCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+      .side {
+        display: grid;
+        grid-template-rows: auto auto minmax(120px, 1fr) auto;
+        min-height: 0;
+        background: var(--panel);
+      }
+      .section {
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .section-title {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .controls button, .send button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--panel-2);
+        color: var(--text);
+        cursor: pointer;
+      }
+      .controls button:hover, .send button:hover { border-color: var(--accent); }
+      .controls .danger {
+        color: #fff;
+        background: #382028;
+        border-color: #69313c;
+      }
+      .hint {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      .hint strong { color: var(--accent); }
+      .telemetry {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .metric {
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #101720;
+        min-height: 58px;
+      }
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .metric b {
+        display: block;
+        margin-top: 5px;
+        overflow-wrap: anywhere;
+        font-size: 14px;
+      }
+      .chat {
+        min-height: 0;
+        overflow: auto;
+        padding: 14px;
+      }
+      .empty-chat {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.5;
+        padding: 20px;
+      }
+      .msg {
+        max-width: 96%;
+        margin: 0 0 10px;
+        padding: 9px 10px;
+        border-radius: 6px;
+        background: #0f151c;
+        border: 1px solid var(--line);
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+      .msg.user {
+        margin-left: auto;
+        border-color: #24695f;
+        background: #10231f;
+      }
+      .msg .meta {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .send {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 86px;
+        gap: 8px;
+        padding: 12px 14px 14px;
+        border-top: 1px solid var(--line);
+        background: #101720;
+      }
+      #message {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 0 11px;
+        background: #0e141b;
+        color: var(--text);
+        outline: none;
+      }
+      #message:focus { border-color: var(--accent); }
+      @media (max-width: 980px) {
+        body { height: auto; overflow: auto; }
+        .app {
+          grid-template-columns: 1fr;
+          height: auto;
+          min-height: 100vh;
+        }
+        .stage { min-height: 58vh; border-right: 0; }
+        .side { min-height: 42vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="stage">
+        <header class="topbar">
+          <h1>Windows Camera Console</h1>
+          <span class="pill">Windows: <strong id="runtime">connecting</strong></span>
+          <span class="pill">3090: <strong id="remote">not connected</strong></span>
+        </header>
+        <div class="video-wrap" id="videoWrap">
+          <img id="video" src="/stream.mjpg" alt="camera stream" draggable="false" />
+          <canvas id="roiCanvas" aria-label="manual ROI"></canvas>
+        </div>
+        <footer class="statusbar">
+          <span class="pill">Track: <strong id="track">waiting</strong></span>
+          <span class="pill">Motion: <strong id="direction">STOP</strong></span>
+          <span class="pill">Box: <strong id="box">none</strong></span>
+          <span class="pill">E-stop: <strong id="estop">false</strong></span>
+        </footer>
+      </section>
+      <aside class="side">
+        <section class="section">
+          <p class="section-title">Controls</p>
+          <div class="controls">
+            <button type="button" data-action="reground">Run Qwen Again</button>
+            <button type="button" data-action="toggle_boundary">Toggle Boundary</button>
+            <button type="button" data-action="capture">Save Frame</button>
+            <button type="button" data-action="reset">Clear Target</button>
+            <button class="danger" type="button" data-action="toggle_estop">Toggle E-stop</button>
+            <button type="button" id="applyRoi">Apply Manual ROI</button>
+          </div>
+          <div class="hint">
+            Windows only captures camera frames and hosts this page.
+            <strong>Qwen, tracking, and YOLO run on the 3090 only after you send an instruction below.</strong>
+          </div>
+        </section>
+        <section class="section">
+          <p class="section-title">Runtime</p>
+          <div class="telemetry">
+            <div class="metric"><span>Grounding</span><b id="grounding">-</b></div>
+            <div class="metric"><span>Boundary</span><b id="boundary">-</b></div>
+            <div class="metric"><span>YOLO</span><b id="obstacles">-</b></div>
+            <div class="metric"><span>LiDAR</span><b id="lidar">-</b></div>
+          </div>
+        </section>
+        <section class="chat" id="chat" aria-live="polite"></section>
+        <form class="send" id="sendForm">
+          <input id="message" autocomplete="off" placeholder="Type target instruction, e.g. track the blue box on the right" />
+          <button type="submit">Send</button>
+        </form>
+      </aside>
+    </main>
+    <script>
+      const els = {
+        runtime: document.querySelector("#runtime"),
+        remote: document.querySelector("#remote"),
+        track: document.querySelector("#track"),
+        direction: document.querySelector("#direction"),
+        box: document.querySelector("#box"),
+        estop: document.querySelector("#estop"),
+        grounding: document.querySelector("#grounding"),
+        boundary: document.querySelector("#boundary"),
+        obstacles: document.querySelector("#obstacles"),
+        lidar: document.querySelector("#lidar"),
+        chat: document.querySelector("#chat"),
+        form: document.querySelector("#sendForm"),
+        message: document.querySelector("#message"),
+        canvas: document.querySelector("#roiCanvas"),
+        videoWrap: document.querySelector("#videoWrap"),
+        applyRoi: document.querySelector("#applyRoi"),
+      };
+      let lastChatJson = "";
+      let dragStart = null;
+      let roi = null;
+
+      function fitCanvas() {
+        const rect = els.videoWrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        els.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        els.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        els.canvas.style.width = rect.width + "px";
+        els.canvas.style.height = rect.height + "px";
+        drawRoi();
+      }
+
+      function drawRoi() {
+        const ctx = els.canvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+        if (!roi) return;
+        const x = Math.min(roi.x1, roi.x2);
+        const y = Math.min(roi.y1, roi.y2);
+        const w = Math.abs(roi.x2 - roi.x1);
+        const h = Math.abs(roi.y2 - roi.y1);
+        ctx.strokeStyle = "#21c6a8";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = "rgba(33, 198, 168, 0.12)";
+        ctx.fillRect(x, y, w, h);
+      }
+
+      function canvasPoint(event) {
+        const rect = els.canvas.getBoundingClientRect();
+        return {
+          x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+          y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
+        };
+      }
+
+      els.canvas.addEventListener("pointerdown", (event) => {
+        dragStart = canvasPoint(event);
+        roi = { x1: dragStart.x, y1: dragStart.y, x2: dragStart.x, y2: dragStart.y };
+        els.canvas.setPointerCapture(event.pointerId);
+        drawRoi();
+      });
+      els.canvas.addEventListener("pointermove", (event) => {
+        if (!dragStart || !roi) return;
+        const p = canvasPoint(event);
+        roi.x2 = p.x;
+        roi.y2 = p.y;
+        drawRoi();
+      });
+      els.canvas.addEventListener("pointerup", () => { dragStart = null; });
+
+      async function postJson(url, payload) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return response.json();
+      }
+
+      function renderChat(chat) {
+        const json = JSON.stringify(chat);
+        if (json === lastChatJson) return;
+        lastChatJson = json;
+        els.chat.innerHTML = "";
+        if (!chat.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-chat";
+          empty.textContent = "No instruction yet. Send one below to connect to the 3090 and start Qwen/YOLO.";
+          els.chat.append(empty);
+          return;
+        }
+        for (const item of chat) {
+          const div = document.createElement("div");
+          div.className = `msg ${item.role === "user" ? "user" : "assistant"}`;
+          const meta = document.createElement("span");
+          meta.className = "meta";
+          meta.textContent = `${item.role === "user" ? "me" : "system"} - ${item.time || ""}`;
+          const text = document.createElement("span");
+          text.textContent = item.content;
+          div.append(meta, text);
+          els.chat.append(div);
+        }
+        els.chat.scrollTop = els.chat.scrollHeight;
+      }
+
+      async function refresh() {
+        try {
+          const status = await fetch("/api/status", { cache: "no-store" }).then((r) => r.json());
+          els.runtime.textContent = status.runtime_status;
+          els.remote.textContent = status.remote_status;
+          els.track.textContent = status.track?.status || "-";
+          els.direction.textContent = status.guidance?.direction || "STOP";
+          els.estop.textContent = String(status.emergency_stop);
+          els.grounding.textContent = status.grounding_status;
+          els.boundary.textContent = status.boundary_mode;
+          els.obstacles.textContent = status.obstacles;
+          els.lidar.textContent = status.lidar;
+          const box = status.track?.bbox;
+          els.box.textContent = box
+            ? `${Math.round(box.x1)},${Math.round(box.y1)} - ${Math.round(box.x2)},${Math.round(box.y2)}`
+            : "none";
+          renderChat(status.chat || []);
+        } catch (error) {
+          els.runtime.textContent = "disconnected";
+        }
+      }
+
+      els.form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = els.message.value.trim();
+        if (!message) return;
+        els.message.value = "";
+        await postJson("/api/message", { message });
+        refresh();
+      });
+
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          await postJson("/api/control", { action: button.dataset.action });
+          refresh();
+        });
+      });
+
+      els.applyRoi.addEventListener("click", async () => {
+        if (!roi) return;
+        const rect = els.canvas.getBoundingClientRect();
+        const payload = {
+          x1: Math.min(roi.x1, roi.x2) / rect.width,
+          y1: Math.min(roi.y1, roi.y2) / rect.height,
+          x2: Math.max(roi.x1, roi.x2) / rect.width,
+          y2: Math.max(roi.y1, roi.y2) / rect.height,
+        };
+        await postJson("/api/roi", payload);
+        roi = null;
+        drawRoi();
+        refresh();
+      });
+
+      window.addEventListener("resize", fitCanvas);
+      fitCanvas();
+      refresh();
+      setInterval(refresh, 650);
+    </script>
+  </body>
+</html>

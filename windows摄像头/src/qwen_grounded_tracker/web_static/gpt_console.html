@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Robot Vision Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1117;
+        --side: #171923;
+        --panel: #202331;
+        --panel2: #2a2f3d;
+        --line: #343949;
+        --text: #f4f7fb;
+        --muted: #9aa5b1;
+        --accent: #10a37f;
+        --danger: #b94a5a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      }
+      button, input { font: inherit; }
+      .app {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr) 360px;
+        height: 100vh;
+      }
+      .sidebar {
+        min-width: 0;
+        background: var(--side);
+        border-right: 1px solid var(--line);
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+      .new-chat {
+        margin: 12px;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--text);
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+        padding: 0 13px;
+      }
+      .new-chat:hover { border-color: var(--accent); }
+      .chat-list {
+        overflow: auto;
+        padding: 0 8px 12px;
+      }
+      .chat-item {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 11px;
+        margin-bottom: 4px;
+        color: var(--text);
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+      }
+      .chat-item.active { background: var(--panel); }
+      .chat-item small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .store {
+        padding: 10px 12px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .stage {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+      .topbar, .statusbar {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--line);
+        background: #12151d;
+      }
+      .statusbar {
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+      }
+      h1 {
+        margin: 0;
+        font-size: 17px;
+        letter-spacing: 0;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        background: #151925;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .pill strong { color: var(--text); }
+      .video-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        background: #05060a;
+        overflow: hidden;
+      }
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        user-select: none;
+      }
+      #roiCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: crosshair;
+      }
+      .right {
+        min-width: 0;
+        background: #151923;
+        border-left: 1px solid var(--line);
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+      }
+      .controls, .metrics {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .controls button, .send button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--text);
+        background: var(--panel);
+        cursor: pointer;
+      }
+      .controls button:hover, .send button:hover { border-color: var(--accent); }
+      .controls .danger {
+        background: #3a2028;
+        border-color: #743142;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .metric {
+        min-height: 62px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px;
+        background: #111722;
+      }
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .metric b {
+        display: block;
+        margin-top: 5px;
+        font-size: 14px;
+        overflow-wrap: anywhere;
+      }
+      .messages {
+        overflow: auto;
+        padding: 14px;
+      }
+      .empty {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        line-height: 1.6;
+        text-align: center;
+        padding: 16px;
+      }
+      .msg {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 11px;
+        margin-bottom: 10px;
+        background: #101722;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+      .msg.user {
+        background: #10251f;
+        border-color: #245d50;
+      }
+      .msg .meta {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .send {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 78px;
+        gap: 8px;
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        background: #12151d;
+      }
+      #message {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--text);
+        outline: none;
+        padding: 0 12px;
+      }
+      #message:focus { border-color: var(--accent); }
+      @media (max-width: 1120px) {
+        body { overflow: auto; height: auto; }
+        .app {
+          grid-template-columns: 1fr;
+          height: auto;
+          min-height: 100vh;
+        }
+        .sidebar { min-height: 210px; }
+        .stage { min-height: 60vh; }
+        .right { min-height: 55vh; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <aside class="sidebar">
+        <button class="new-chat" id="newChat">+ 新对话</button>
+        <div class="chat-list" id="chatList"></div>
+        <div class="store">聊天记录：<span id="storePath">outputs/chat_history.json</span></div>
+      </aside>
+
+      <section class="stage">
+        <header class="topbar">
+          <h1>Robot Vision Console</h1>
+          <span class="pill">Windows <strong id="runtime">starting</strong></span>
+          <span class="pill">3090 <strong id="remote">not connected</strong></span>
+          <span class="pill">FPS <strong id="fps">0 / 0</strong></span>
+        </header>
+        <div class="video-wrap" id="videoWrap">
+          <img id="video" src="/stream.mjpg" alt="camera stream" draggable="false" />
+          <canvas id="roiCanvas"></canvas>
+        </div>
+        <footer class="statusbar">
+          <span class="pill">目标 <strong id="track">waiting</strong></span>
+          <span class="pill">运动 <strong id="direction">STOP</strong></span>
+          <span class="pill">框选 <strong id="box">none</strong></span>
+        </footer>
+      </section>
+
+      <aside class="right">
+        <div class="controls">
+          <button type="button" data-action="reground">重新调用 Qwen</button>
+          <button type="button" data-action="toggle_boundary">切换边界</button>
+          <button type="button" data-action="capture">保存当前帧</button>
+          <button type="button" data-action="reset">清除目标</button>
+          <button class="danger" type="button" data-action="toggle_estop">急停切换</button>
+          <button type="button" id="applyRoi">应用手动框选</button>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span>Grounding</span><b id="grounding">-</b></div>
+          <div class="metric"><span>Boundary</span><b id="boundary">-</b></div>
+          <div class="metric"><span>YOLO</span><b id="obstacles">-</b></div>
+          <div class="metric"><span>LiDAR / E-stop</span><b id="lidar">-</b></div>
+        </div>
+        <section class="messages" id="messages"></section>
+        <form class="send" id="sendForm">
+          <input id="message" autocomplete="off" placeholder="输入任务，例如：找到瓶子，进行框选" />
+          <button type="submit">发送</button>
+        </form>
+      </aside>
+    </main>
+
+    <script>
+      const els = {
+        newChat: document.querySelector("#newChat"),
+        chatList: document.querySelector("#chatList"),
+        storePath: document.querySelector("#storePath"),
+        runtime: document.querySelector("#runtime"),
+        remote: document.querySelector("#remote"),
+        fps: document.querySelector("#fps"),
+        track: document.querySelector("#track"),
+        direction: document.querySelector("#direction"),
+        box: document.querySelector("#box"),
+        grounding: document.querySelector("#grounding"),
+        boundary: document.querySelector("#boundary"),
+        obstacles: document.querySelector("#obstacles"),
+        lidar: document.querySelector("#lidar"),
+        messages: document.querySelector("#messages"),
+        form: document.querySelector("#sendForm"),
+        message: document.querySelector("#message"),
+        canvas: document.querySelector("#roiCanvas"),
+        videoWrap: document.querySelector("#videoWrap"),
+        applyRoi: document.querySelector("#applyRoi"),
+      };
+      let lastChatJson = "";
+      let lastConversationsJson = "";
+      let activeConversationId = "";
+      let dragStart = null;
+      let roi = null;
+
+      async function postJson(url, payload) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return response.json();
+      }
+
+      function fitCanvas() {
+        const rect = els.videoWrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        els.canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        els.canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        els.canvas.style.width = rect.width + "px";
+        els.canvas.style.height = rect.height + "px";
+        drawRoi();
+      }
+
+      function drawRoi() {
+        const ctx = els.canvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+        if (!roi) return;
+        const x = Math.min(roi.x1, roi.x2);
+        const y = Math.min(roi.y1, roi.y2);
+        const w = Math.abs(roi.x2 - roi.x1);
+        const h = Math.abs(roi.y2 - roi.y1);
+        ctx.strokeStyle = "#10a37f";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = "rgba(16, 163, 127, 0.12)";
+        ctx.fillRect(x, y, w, h);
+      }
+
+      function canvasPoint(event) {
+        const rect = els.canvas.getBoundingClientRect();
+        return {
+          x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+          y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
+        };
+      }
+
+      function renderConversations(status) {
+        const conversations = status.conversations || [];
+        const json = JSON.stringify(conversations) + status.active_conversation_id;
+        if (json === lastConversationsJson) return;
+        lastConversationsJson = json;
+        activeConversationId = status.active_conversation_id || "";
+        els.chatList.innerHTML = "";
+        for (const item of conversations) {
+          const button = document.createElement("button");
+          button.className = `chat-item ${item.id === activeConversationId ? "active" : ""}`;
+          button.type = "button";
+          button.textContent = item.title || "New chat";
+          const small = document.createElement("small");
+          small.textContent = item.updated_at || "";
+          button.append(small);
+          button.addEventListener("click", async () => {
+            await postJson("/api/chat/select", { conversation_id: item.id });
+            lastChatJson = "";
+            lastConversationsJson = "";
+            refresh();
+          });
+          els.chatList.append(button);
+        }
+      }
+
+      function renderMessages(chat) {
+        const json = JSON.stringify(chat);
+        if (json === lastChatJson) return;
+        lastChatJson = json;
+        els.messages.innerHTML = "";
+        if (!chat.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "输入一条任务指令后，Windows 会连接 3090，Qwen/YOLO/跟踪才会开始运行。";
+          els.messages.append(empty);
+          return;
+        }
+        for (const item of chat) {
+          const div = document.createElement("div");
+          div.className = `msg ${item.role === "user" ? "user" : "assistant"}`;
+          const meta = document.createElement("span");
+          meta.className = "meta";
+          meta.textContent = `${item.role === "user" ? "我" : "系统"} · ${item.time || ""}`;
+          const text = document.createElement("span");
+          text.textContent = item.content;
+          div.append(meta, text);
+          els.messages.append(div);
+        }
+        els.messages.scrollTop = els.messages.scrollHeight;
+      }
+
+      async function refresh() {
+        try {
+          const status = await fetch("/api/status", { cache: "no-store" }).then((r) => r.json());
+          els.runtime.textContent = status.runtime_status;
+          els.remote.textContent = status.remote_status;
+          els.fps.textContent = `${status.local_fps || 0} / ${status.remote_fps || 0}`;
+          els.track.textContent = status.track?.status || "-";
+          els.direction.textContent = status.guidance?.direction || "STOP";
+          els.grounding.textContent = status.grounding_status;
+          els.boundary.textContent = status.boundary_mode;
+          els.obstacles.textContent = status.obstacles;
+          els.lidar.textContent = `${status.lidar} / ${status.emergency_stop}`;
+          els.storePath.textContent = status.chat_store_path || "outputs/chat_history.json";
+          const box = status.track?.bbox;
+          els.box.textContent = box
+            ? `${Math.round(box.x1)},${Math.round(box.y1)} - ${Math.round(box.x2)},${Math.round(box.y2)}`
+            : "none";
+          renderConversations(status);
+          renderMessages(status.chat || []);
+        } catch (error) {
+          els.runtime.textContent = "disconnected";
+        }
+      }
+
+      els.canvas.addEventListener("pointerdown", (event) => {
+        dragStart = canvasPoint(event);
+        roi = { x1: dragStart.x, y1: dragStart.y, x2: dragStart.x, y2: dragStart.y };
+        els.canvas.setPointerCapture(event.pointerId);
+        drawRoi();
+      });
+      els.canvas.addEventListener("pointermove", (event) => {
+        if (!dragStart || !roi) return;
+        const p = canvasPoint(event);
+        roi.x2 = p.x;
+        roi.y2 = p.y;
+        drawRoi();
+      });
+      els.canvas.addEventListener("pointerup", () => { dragStart = null; });
+
+      els.newChat.addEventListener("click", async () => {
+        await postJson("/api/chat/new", {});
+        lastChatJson = "";
+        lastConversationsJson = "";
+        refresh();
+      });
+
+      els.form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = els.message.value.trim();
+        if (!message) return;
+        els.message.value = "";
+        await postJson("/api/message", { message });
+        refresh();
+      });
+
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          await postJson("/api/control", { action: button.dataset.action });
+          refresh();
+        });
+      });
+
+      els.applyRoi.addEventListener("click", async () => {
+        if (!roi) return;
+        const rect = els.canvas.getBoundingClientRect();
+        await postJson("/api/roi", {
+          x1: Math.min(roi.x1, roi.x2) / rect.width,
+          y1: Math.min(roi.y1, roi.y2) / rect.height,
+          x2: Math.max(roi.x1, roi.x2) / rect.width,
+          y2: Math.max(roi.y1, roi.y2) / rect.height,
+        });
+        roi = null;
+        drawRoi();
+        refresh();
+      });
+
+      window.addEventListener("resize", fitCanvas);
+      fitCanvas();
+      refresh();
+      setInterval(refresh, 650);
+    </script>
+  </body>
+</html>
