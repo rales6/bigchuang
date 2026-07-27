@@ -1,6 +1,0 @@
-transformers>=4.57.0
-accelerate>=1.0
-safetensors>=0.4
-qwen-vl-utils==0.0.14
-huggingface-hub>=0.26
-modelscope>=1.20
