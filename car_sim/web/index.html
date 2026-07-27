@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="car1.0 二维房间、小车运动与实时激光建图仿真样品"
+    />
+    <title>CAR·LAB — 2D 仿真台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="view-tasks workflow-task">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <div>
+          <strong>CAR·LAB</strong>
+          <span>2D 仿真台 / prototype 01</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <nav class="view-switch" aria-label="工作区切换">
+          <button class="active" data-view="tasks"><small>1</small>任务选择</button>
+          <button data-view="scene" disabled><small>2</small>场景布置</button>
+          <button data-view="testing" disabled><small>3</small>任务运行</button>
+          <button data-view="pickup" disabled>机械臂视角</button>
+          <button data-view="console" disabled>脚本与指令</button>
+        </nav>
+        <span id="taskBadge" class="badge task-badge">未选择任务</span>
+        <div class="connection"><i id="connectionDot"></i><span id="connectionText">本地链路</span></div>
+        <button id="editorToggleBtn" class="ghost scene-only-action" aria-expanded="true">隐藏面板</button>
+        <button id="saveSceneBtn" class="ghost scene-only-action">保存场景</button>
+        <button id="loadSceneBtn" class="ghost scene-only-action">载入场景</button>
+        <button id="runBtn" class="primary execution-only-action">结束任务</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="task-page" aria-label="仿真任务选择">
+        <div class="task-intro">
+          <span class="eyebrow">MISSION LAB</span>
+          <h1>选择要模拟的任务</h1>
+          <p>同一个房间、底盘和外部脚本接口可以运行不同任务。选择任务后再布置场景并执行代码。</p>
+        </div>
+        <div class="task-grid">
+          <article class="panel task-card" data-task-card="mapping">
+            <span class="task-number">01</span>
+            <div class="task-icon map-icon">⌁</div>
+            <span class="eyebrow">LIDAR SLAM</span>
+            <h2>自主探索与建图</h2>
+            <p>模拟激光雷达、运动偏差、实时占据栅格和外部建图脚本。</p>
+            <ul>
+              <li>180° / 360° 雷达扫描</li>
+              <li>轮差、打滑、延迟与测距噪声</li>
+              <li>输出标准 LaserScan 数据</li>
+            </ul>
+            <button class="wide primary" data-select-task="mapping">选择建图任务</button>
+          </article>
+          <article class="panel task-card" data-task-card="pickup">
+            <span class="task-number">02</span>
+            <div class="task-icon pickup-icon">◇</div>
+            <span class="eyebrow">VISION + ARM</span>
+            <h2>物品识别与夹取</h2>
+            <p>模拟车头摄像头、六关节机械臂以及外部脚本发出的夹取控制指令。</p>
+            <ul>
+              <li>场景中放置可夹取物品</li>
+              <li>到达物品前自动切换近景视角</li>
+              <li>0–5号关节使用项目真实脉宽协议</li>
+            </ul>
+            <button class="wide primary" data-select-task="pickup">选择夹取任务</button>
+          </article>
+        </div>
+      </section>
+
+      <aside class="panel editor-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">ENVIRONMENT</span>
+            <h1>场景编辑器</h1>
+          </div>
+          <span id="modeBadge" class="badge">编辑中</span>
+        </div>
+
+        <nav class="editor-tabs" aria-label="编辑器功能分组">
+          <button class="active" data-editor-tab="room">房间</button>
+          <button data-editor-tab="tools">布置</button>
+          <button data-editor-tab="car">小车</button>
+          <button data-editor-tab="errors">偏差</button>
+          <button data-editor-tab="control">控制</button>
+        </nav>
+
+        <section class="editor-section active" data-editor-section="room">
+          <div class="section-title"><span>01</span> 房间尺寸</div>
+          <div class="field-row">
+            <label>宽度 <span><input id="roomWidth" type="number" min="3" max="20" step="0.5" value="8" /> m</span></label>
+            <label>高度 <span><input id="roomHeight" type="number" min="3" max="15" step="0.5" value="5" /> m</span></label>
+          </div>
+          <button id="applyRoomBtn" class="wide secondary">应用尺寸</button>
+        </section>
+
+        <section class="editor-section" data-editor-section="tools">
+          <div class="section-title"><span>02</span> 布置工具</div>
+          <div class="tool-grid" role="toolbar" aria-label="场景布置工具">
+            <button class="tool active" data-tool="select"><b>↖</b>选择</button>
+            <button class="tool" data-tool="rect"><b>□</b>矩形</button>
+            <button class="tool" data-tool="circle"><b>○</b>圆形</button>
+            <button class="tool" data-tool="car"><b>⌖</b>放置小车</button>
+            <button class="tool" data-tool="item"><b>◇</b>放置物品</button>
+            <button class="tool" data-tool="goal"><b>◎</b>设定目标</button>
+            <button id="deleteBtn" class="tool danger"><b>×</b>删除</button>
+          </div>
+          <div id="itemInspector" class="item-inspector unavailable">
+            <div>
+              <strong id="selectedItemLabel">未选中物品</strong>
+              <span>先用“选择”点击一个物品</span>
+            </div>
+            <label>选择物品
+              <select id="itemSelect" aria-label="选择待调整物品">
+                <option value="">请选择</option>
+              </select>
+            </label>
+            <label>物品尺寸
+              <span><input id="itemSize" type="number" min="0.08" max="0.6" step="0.02" value="0.22" disabled /> m</span>
+            </label>
+            <div class="size-actions">
+              <button id="itemSmallerBtn" disabled>缩小</button>
+              <button id="itemLargerBtn" disabled>放大</button>
+            </div>
+          </div>
+          <p class="hint">只在本页面的布置阶段允许编辑。选中物品后可修改尺寸。</p>
+        </section>
+
+        <section class="editor-section" data-editor-section="car">
+          <div class="section-title"><span>03</span> 小车参数</div>
+          <div class="field-row">
+            <label>车长 <span><input id="carLength" type="number" min="0.2" max="1.5" step="0.05" value="0.55" /> m</span></label>
+            <label>车宽 <span><input id="carWidth" type="number" min="0.2" max="1.2" step="0.05" value="0.38" /> m</span></label>
+          </div>
+          <div class="field-row">
+            <label>雷达视场 <span><input id="lidarFov" type="number" min="60" max="360" step="30" value="180" /> °</span></label>
+            <label>最大距离 <span><input id="lidarRange" type="number" min="1" max="12" step="0.5" value="6" /> m</span></label>
+          </div>
+          <label class="car-yaw-label">小车初始朝向
+            <span><input id="carYaw" type="number" min="-180" max="180" step="5" value="0" /> °</span>
+          </label>
+          <div class="direction-actions">
+            <button data-yaw-step="15">左转 15°</button>
+            <button id="yawResetBtn">朝向归零</button>
+            <button data-yaw-step="-15">右转 15°</button>
+          </div>
+          <p class="hint">也可以选择“放置小车”，在画布上按下确定位置，再拖向车头方向。</p>
+        </section>
+
+        <section class="editor-section" data-editor-section="errors">
+          <div class="section-title"><span>04</span> 运动与传感器偏差</div>
+          <label class="preset-label">误差预设
+            <select id="errorPreset">
+              <option value="ideal">理想模型</option>
+              <option value="mild" selected>轻微真实偏差</option>
+              <option value="strong">明显偏差/压力测试</option>
+              <option value="custom">自定义参数</option>
+            </select>
+          </label>
+          <div class="field-row physics-fields">
+            <label>左轮倍率 <span><input id="leftScale" type="number" min="0.7" max="1.3" step="0.005" value="0.985" /></span></label>
+            <label>右轮倍率 <span><input id="rightScale" type="number" min="0.7" max="1.3" step="0.005" value="1.015" /></span></label>
+          </div>
+          <div class="field-row physics-fields">
+            <label>指令延迟 <span><input id="commandLatency" type="number" min="0" max="1000" step="10" value="80" /> ms</span></label>
+            <label>打滑比例 <span><input id="linearSlip" type="number" min="0" max="0.5" step="0.01" value="0.03" /></span></label>
+          </div>
+          <div class="field-row physics-fields">
+            <label>测距噪声 <span><input id="lidarNoise" type="number" min="0" max="0.2" step="0.002" value="0.012" /> m</span></label>
+            <label>雷达丢点 <span><input id="lidarDropout" type="number" min="0" max="0.5" step="0.01" value="0.01" /></span></label>
+          </div>
+          <p class="hint">左右轮不一致会造成直行偏航；延迟、打滑、角速度偏置和雷达噪声都会进入真实仿真数据。</p>
+        </section>
+
+        <section class="control-section editor-section" data-editor-section="control">
+          <div class="section-title"><span>05</span> 手动控制</div>
+          <div class="drive-pad">
+            <button data-drive="left" aria-label="左转">↶</button>
+            <button data-drive="forward" aria-label="前进">↑</button>
+            <button data-drive="right" aria-label="右转">↷</button>
+            <button data-drive="backward" aria-label="后退">↓</button>
+            <button data-drive="stop" class="stop-control" aria-label="停车">■</button>
+          </div>
+          <p class="hint center">键盘 W / A / S / D，松键停车</p>
+        </section>
+        <button id="confirmSceneBtn" class="wide primary editor-confirm">完成布置，进入任务运行</button>
+      </aside>
+
+      <section class="stage-column">
+        <div class="stage-header">
+          <div>
+            <span class="eyebrow">GROUND TRUTH</span>
+            <h2>房间与传感器视图</h2>
+          </div>
+          <div class="legend">
+            <span><i class="legend-car"></i>小车</span>
+            <span><i class="legend-scan"></i>激光束</span>
+            <span><i class="legend-goal"></i>目标</span>
+          </div>
+        </div>
+        <div id="canvasShell" class="canvas-shell">
+          <canvas id="worldCanvas" aria-label="二维房间仿真画布"></canvas>
+          <div class="canvas-scale"><span></span><b>1 m</b></div>
+          <div id="canvasTip" class="canvas-tip">拖拽绘制矩形障碍</div>
+        </div>
+        <div class="telemetry-strip">
+          <div><span>X 坐标</span><strong id="poseX">1.00 m</strong></div>
+          <div><span>Y 坐标</span><strong id="poseY">1.00 m</strong></div>
+          <div><span>朝向</span><strong id="poseYaw">0.0°</strong></div>
+          <div><span>指令线速度</span><strong id="commandLinearSpeed">0 mm/s</strong></div>
+          <div><span>实际线速度</span><strong id="linearSpeed">0 mm/s</strong></div>
+          <div><span>指令角速度</span><strong id="commandAngularSpeed">0 mrad/s</strong></div>
+          <div><span>实际角速度</span><strong id="angularSpeed">0 mrad/s</strong></div>
+          <div><span>扫描频率</span><strong>10 Hz</strong></div>
+        </div>
+      </section>
+
+      <aside class="right-column">
+        <section class="panel map-panel">
+          <div class="panel-heading compact">
+            <div>
+              <span class="eyebrow">LIVE SLAM</span>
+              <h2>实时建图</h2>
+            </div>
+            <button id="resetMapBtn" class="icon-button" title="清空地图">↺</button>
+          </div>
+          <div class="map-shell">
+            <canvas id="mapCanvas" aria-label="实时占据栅格地图"></canvas>
+            <span class="north">N ↑</span>
+          </div>
+          <div class="map-stats">
+            <div><strong id="mapProgress">0%</strong><span>已探索</span></div>
+            <div><strong id="occupiedCount">0</strong><span>障碍格</span></div>
+            <div><strong id="pathDistance">0.0 m</strong><span>轨迹</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="pickup-page" aria-label="摄像头与机械臂任务页面">
+        <section class="panel camera-panel">
+          <div class="panel-heading compact">
+            <div>
+              <span class="eyebrow">FRONT CAMERA</span>
+              <h2>车头摄像头</h2>
+            </div>
+            <span id="cameraStatus" class="badge">等待物品</span>
+          </div>
+          <div class="camera-shell">
+            <canvas id="cameraCanvas" aria-label="车头摄像头仿真画面"></canvas>
+            <div class="camera-reticle"><i></i><i></i></div>
+            <span class="camera-label">SIM CAM · 640×360</span>
+          </div>
+          <div class="camera-stats">
+            <div><span>目标</span><strong id="cameraTarget">无</strong></div>
+            <div><span>距离</span><strong id="cameraDistance">--</strong></div>
+            <div><span>水平偏角</span><strong id="cameraBearing">--</strong></div>
+            <div><span>置信度</span><strong id="cameraConfidence">--</strong></div>
+          </div>
+        </section>
+
+        <section class="panel arm-panel">
+          <div class="panel-heading compact">
+            <div>
+              <span class="eyebrow">SIX JOINT ARM</span>
+              <h2>机械臂执行视角</h2>
+            </div>
+            <span id="graspBadge" class="badge">夹爪空闲</span>
+          </div>
+          <div class="arm-visual">
+            <canvas id="armCanvas" aria-label="六关节机械臂仿真"></canvas>
+          </div>
+          <div class="joint-readout" aria-label="机械臂关节状态">
+            <div><span>0 左右</span><strong id="joint0">1500</strong></div>
+            <div><span>1 抬升</span><strong id="joint1">1700</strong></div>
+            <div><span>2 抬升</span><strong id="joint2">2000</strong></div>
+            <div><span>3 抬升</span><strong id="joint3">1100</strong></div>
+            <div><span>4 腕旋</span><strong id="joint4">1500</strong></div>
+            <div><span>5 夹爪</span><strong id="joint5">1200</strong></div>
+          </div>
+          <div class="arm-actions">
+            <button data-arm-action="home">机械臂回零</button>
+            <button data-arm-action="left">底座左转</button>
+            <button data-arm-action="right">底座右转</button>
+            <button data-arm-action="down">机械臂下降</button>
+            <button data-arm-action="release">松开夹爪</button>
+            <button class="primary" data-arm-action="grip">执行夹取</button>
+          </div>
+          <p class="hint">外部脚本使用 <code>set_arm_joints()</code> 控制；靠近物品后摄像头会输出像素框、距离和偏角。</p>
+        </section>
+      </section>
+
+      <section class="console-page" aria-label="脚本与指令页面">
+        <section class="panel command-panel">
+          <div class="panel-heading compact">
+            <div>
+              <span class="eyebrow">COMMAND BUS</span>
+              <h2>指令入口</h2>
+            </div>
+            <span class="badge api">HTTP</span>
+          </div>
+          <div class="api-address">POST <code>/api/commands</code></div>
+          <textarea id="commandInput" spellcheck="false" aria-label="JSON 指令">{
+  "type": "goto",
+  "x_m": 6.4,
+  "y_m": 3.8
+}</textarea>
+          <button id="sendCommandBtn" class="wide primary">发送到仿真器</button>
+          <div class="quick-commands">
+            <button data-command="forward">前进 0.6s</button>
+            <button data-command="spin">左转 0.5s</button>
+            <button data-command="demo">样例导航</button>
+            <button data-command="stop">立即停车</button>
+            <button data-arm-action="home">机械臂回零</button>
+            <button data-arm-action="grip">闭合夹爪</button>
+          </div>
+          <div class="log-heading"><span>执行记录</span><button id="clearLogBtn">清空</button></div>
+          <ol id="commandLog" class="command-log" aria-live="polite"></ol>
+        </section>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
