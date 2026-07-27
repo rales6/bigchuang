@@ -1,3 +1,0 @@
--r requirements/base.txt
--r requirements/qwen.txt
--r requirements/yolo.txt
