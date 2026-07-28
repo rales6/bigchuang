@@ -88,11 +88,33 @@ class MappingConfig:
     map_keyframe_translation_m: float = 0.025
     map_keyframe_rotation_deg: float = 2.0
     map_keyframe_max_interval_s: float = 0.50
+    # Occupancy mapping is performed only at deliberate stationary
+    # observation poses. Motion scans remain available to localization.
+    stationary_map_translation_m: float = 0.40
+    stationary_map_rotation_deg: float = 30.0
+    stationary_map_settle_scans: int = 2
+    stationary_map_fusion_scans: int = 5
+    stationary_map_min_support_scans: int = 3
+    stationary_map_angle_bin_deg: float = 1.0
+    stationary_map_range_tolerance_m: float = 0.10
+    stationary_map_max_pose_translation_m: float = 0.025
+    stationary_map_max_pose_rotation_deg: float = 1.2
+    # While a stop command is settling, permit a small real coast/rollback
+    # but reject the large false rotations ICP can invent on a single wall.
+    stationary_localization_max_rotation_step_deg: float = 6.0
+    stationary_map_max_match_rmse_m: float = 0.11
+    stationary_map_min_match_inlier_ratio: float = 0.50
+    # One fused observation represents agreement across several raw scans,
+    # so its endpoint must cross the occupied threshold in one update.
+    stationary_map_occupied_evidence_scale: float = 2.2
+    stationary_map_occupied_inflation_cells: int = 1
+    # Retained for compatibility with calibration utilities. Autonomous
+    # mapping no longer writes scans while the vehicle is moving.
     map_min_linear_speed_m_s: float = 0.025
     map_max_linear_speed_m_s: float = 0.30
     map_max_angular_speed_rad_s: float = 0.65
     map_speed_filter_window: int = 3
-    mapping_max_distance_m: float = 3.0
+    mapping_max_distance_m: float = 6.0
     # Revisited mapping keyframes replace older evidence around the same pose.
     # Replaying these keyframes lets old free space return to unknown and lets
     # a newly observed wall replace an older position/orientation.
@@ -105,13 +127,13 @@ class MappingConfig:
     # Keep several independent observations from the same viewpoint. One new
     # scan cannot erase an older wall; only a sustained run of newer evidence
     # gradually retires the oldest keyframes in that direction.
-    map_revisit_evidence_frames: int = 8
-    map_contradiction_clear_hits: int = 15
+    map_revisit_evidence_frames: int = 4
+    map_contradiction_clear_hits: int = 5
     map_auto_expand: bool = True
     map_expand_margin_m: float = 1.0
-    render_wall_gap_max_m: float = 0.15
+    render_wall_gap_max_m: float = 0.0
     render_wall_support_m: float = 0.10
-    min_obstacle_area_m2: float = 0.03
+    min_obstacle_area_m2: float = 0.01
     max_pose_linear_speed_m_s: float = 0.55
     pose_translation_margin_m: float = 0.025
     max_pose_translation_step_m: float = 0.12
@@ -120,13 +142,17 @@ class MappingConfig:
     # Even when scan timestamps are delayed, one ICP update may not rotate
     # the map by an implausibly large amount.
     max_pose_rotation_step_deg: float = 15.0
+    # Adjacent scans provide the low-latency yaw increment. A reliable
+    # rolling/global submap may correct its accumulated drift gradually.
+    heading_submap_correction_gain: float = 0.65
+    heading_submap_max_correction_deg: float = 2.0
     # The real chassis slips along a short arc while turning. Classify the
     # motion from lidar and accept plausible translation instead of assuming
     # a perfect wheel-commanded spin.
     lidar_turn_min_rotation_deg: float = 1.5
     lidar_turn_max_translation_m: float = 0.08
     pure_rotation_max_translation_m: float = 0.08
-    manhattan_enabled: bool = True
+    manhattan_enabled: bool = False
     manhattan_min_segments: int = 28
     manhattan_min_confidence: float = 0.62
     manhattan_anchor_observations: int = 8

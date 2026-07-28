@@ -20,6 +20,7 @@ from raspberry_pi.mapping import (
     ExplorationConfig,
     FrontierExplorer,
     LidarSlam,
+    MotionCommand,
     filter_scan_sector,
 )
 
@@ -89,14 +90,50 @@ def build_argument_parser():
     parser.add_argument(
         "--mapping-max-distance",
         type=float,
-        default=3.0,
+        default=6.0,
         help="写入黑色障碍边界的最远距离；更远回波只清空到此距离，单位 m",
     )
     parser.add_argument(
         "--wall-gap-max",
         type=float,
-        default=0.15,
+        default=0.0,
         help="导出地图中允许拼接的黑色墙线最大短缺口，单位 m",
+    )
+    parser.add_argument(
+        "--stationary-map-distance",
+        type=float,
+        default=0.40,
+        help="distance between stopped mapping observation poses in metres",
+    )
+    parser.add_argument(
+        "--stationary-map-angle",
+        type=float,
+        default=30.0,
+        help="heading change between stopped mapping observations in degrees",
+    )
+    parser.add_argument(
+        "--stationary-settle-scans",
+        type=int,
+        default=2,
+        help="scans discarded after stopping before map sampling",
+    )
+    parser.add_argument(
+        "--stationary-fusion-scans",
+        type=int,
+        default=5,
+        help="stable scans fused into one mapping keyframe",
+    )
+    parser.add_argument(
+        "--stationary-min-support",
+        type=int,
+        default=3,
+        help="independent scans required to retain one angular return",
+    )
+    parser.add_argument(
+        "--stationary-range-tolerance",
+        type=float,
+        default=0.10,
+        help="maximum range disagreement when fusing scans in metres",
     )
     parser.add_argument(
         "--map-min-speed",
@@ -123,18 +160,23 @@ def build_argument_parser():
         help="雷达判定正在转向时允许的最大单帧平移，单位 m",
     )
     parser.add_argument(
+        "--manhattan",
+        action="store_true",
+        help="opt in to rectangular-room wall-axis yaw correction",
+    )
+    parser.add_argument(
         "--no-manhattan",
         action="store_true",
-        help="关闭矩形房间横平竖直偏航校正",
+        help="deprecated compatibility flag; wall-axis correction is off by default",
     )
     parser.add_argument(
         "--min-obstacle-area",
         type=float,
-        default=0.03,
+        default=0.01,
         help="小于该连通面积的障碍点块不进入规划和地图，单位 m^2",
     )
     parser.add_argument("--output", default="maps/ble_auto_map")
-    parser.add_argument("--save-every", type=int, default=40)
+    parser.add_argument("--save-every", type=int, default=0)
     parser.add_argument(
         "--live-map",
         action="store_true",
@@ -214,7 +256,7 @@ def build_argument_parser():
         default=0.85,
         help="雷达定位测得角速度高于此值时逐步减小转向驱动，单位 rad/s",
     )
-    parser.add_argument("--turn-speed", type=int, default=2500, help="转速 mrad/s")
+    parser.add_argument("--turn-speed", type=int, default=1500, help="转速 mrad/s")
     parser.add_argument(
         "--turn-arc-speed",
         type=int,
@@ -514,6 +556,30 @@ def validate_args(args, parser=None):
         errors.append("--mapping-max-distance 必须在 0.30..8.0 米之间")
     if not 0.0 <= args.wall_gap_max <= 0.50:
         errors.append("--wall-gap-max 必须在 0..0.50 米之间")
+    if not 0.10 <= args.stationary_map_distance <= 2.0:
+        errors.append(
+            "--stationary-map-distance must be in 0.10..2.0 m"
+        )
+    if not 5.0 <= args.stationary_map_angle <= 90.0:
+        errors.append(
+            "--stationary-map-angle must be in 5..90 degrees"
+        )
+    if not 0 <= args.stationary_settle_scans <= 10:
+        errors.append("--stationary-settle-scans must be in 0..10")
+    if not 3 <= args.stationary_fusion_scans <= 15:
+        errors.append("--stationary-fusion-scans must be in 3..15")
+    if not (
+        2 <= args.stationary_min_support
+        <= args.stationary_fusion_scans
+    ):
+        errors.append(
+            "--stationary-min-support must be in "
+            "2..stationary-fusion-scans"
+        )
+    if not 0.02 <= args.stationary_range_tolerance <= 0.50:
+        errors.append(
+            "--stationary-range-tolerance must be in 0.02..0.50 m"
+        )
     if not 0.0 <= args.map_min_speed < args.map_max_speed:
         errors.append("必须满足 0 <= --map-min-speed < --map-max-speed")
     if not 0.05 <= args.map_max_speed <= 1.0:
@@ -563,11 +629,25 @@ def run(
             lidar_offset_y_m=args.lidar_offset_y,
             mapping_max_distance_m=args.mapping_max_distance,
             render_wall_gap_max_m=args.wall_gap_max,
+            stationary_map_translation_m=(
+                args.stationary_map_distance
+            ),
+            stationary_map_rotation_deg=args.stationary_map_angle,
+            stationary_map_settle_scans=args.stationary_settle_scans,
+            stationary_map_fusion_scans=args.stationary_fusion_scans,
+            stationary_map_min_support_scans=(
+                args.stationary_min_support
+            ),
+            stationary_map_range_tolerance_m=(
+                args.stationary_range_tolerance
+            ),
             map_min_linear_speed_m_s=args.map_min_speed,
             map_max_linear_speed_m_s=args.map_max_speed,
             map_max_angular_speed_rad_s=args.map_max_turn_rate,
             lidar_turn_max_translation_m=args.turn_max_translation,
-            manhattan_enabled=not args.no_manhattan,
+            manhattan_enabled=(
+                args.manhattan and not args.no_manhattan
+            ),
             min_obstacle_area_m2=args.min_obstacle_area,
         ),
         lidar_config,
@@ -632,6 +712,7 @@ def run(
     runtime_budget = None
     last_update = None
     last_command = None
+    stationary_mapping = True
 
     def publish_live_map(
         update,
@@ -695,6 +776,13 @@ def run(
             "command": command_status,
             "mapping": {
                 "integrated_count": int(slam.map_integrated_count),
+                "stationary_fusion_count": int(
+                    slam.stationary_fusion_count
+                ),
+                "stationary_mode": bool(stationary_mapping),
+                "stationary_progress": list(
+                    slam.stationary_mapping_progress
+                ),
                 "skip_counts": dict(slam.map_skip_counts),
                 "global_relocalizations": int(
                     slam.global_relocalization_count
@@ -764,10 +852,15 @@ def run(
         runtime_budget = ActiveRuntimeBudget(max_runtime_s)
         print(
             "自主建图已启动：定位使用完整扫描，地图只使用前方 {:.0f}°/"
-            "{:.1f}m，巡航/脱困上限 {}/{} mm/s；"
+            "{:.1f}m；每移动 {:.2f}m 或转向 {:.0f}° 停车，"
+            "稳定后融合 {}/{} 圈；巡航/脱困上限 {}/{} mm/s；"
             "Ctrl+C 会停车并保存。".format(
                 args.usable_fov,
                 args.mapping_max_distance,
+                args.stationary_map_distance,
+                args.stationary_map_angle,
+                args.stationary_min_support,
+                args.stationary_fusion_scans,
                 args.speed,
                 args.max_drive_speed,
             )
@@ -781,7 +874,11 @@ def run(
             mapping_scan = filter_scan_sector(
                 raw_scan, args.front_center, args.usable_fov
             )
-            update = slam.process(raw_scan, mapping_scan=mapping_scan)
+            update = slam.process(
+                raw_scan,
+                mapping_scan=mapping_scan,
+                stationary_mapping=stationary_mapping,
+            )
             last_update = update
             speed_controller.observe(update)
             if not update.accepted:
@@ -848,8 +945,33 @@ def run(
             rejected_count = 0
             relocalization_count = 0
             accepted_count += 1
-            command = explorer.update(update.pose, mapping_scan, slam.grid)
-            command = speed_controller.apply(command)
+            if stationary_mapping and update.map_integrated:
+                stationary_mapping = False
+            elif (
+                not stationary_mapping
+                and slam.stationary_mapping_due()
+            ):
+                stationary_mapping = True
+
+            if stationary_mapping:
+                speed_controller.stopped()
+                collected, required = slam.stationary_mapping_progress
+                command = MotionCommand(
+                    0,
+                    0,
+                    "stationary_mapping",
+                    "stopped lidar fusion {}/{}".format(
+                        collected,
+                        required,
+                    ),
+                )
+            else:
+                command = explorer.update(
+                    update.pose,
+                    mapping_scan,
+                    slam.grid,
+                )
+                command = speed_controller.apply(command)
             last_command = command
             command_ttl_ms = speed_controller.ttl_for(
                 command,
