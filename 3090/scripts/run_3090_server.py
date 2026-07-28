@@ -61,6 +61,104 @@ class SharedRemoteSession:
         self.return_overlay = True
         self.overlay_quality = 65
         self.overlay_every_n = 2
+        self.stereo_info: dict[str, Any] = {
+            "enabled": False,
+            "layout": "mono",
+            "depth_enabled": False,
+        }
+
+    def set_stereo_info(self, payload: dict[str, Any] | None) -> None:
+        info = payload if isinstance(payload, dict) else {}
+        enabled = bool(info.get("enabled", False)) and str(info.get("layout", "")).lower() == "side_by_side"
+        with self.lock:
+            self.stereo_info = {
+                "enabled": enabled,
+                "layout": "side_by_side" if enabled else "mono",
+                "left_camera": str(info.get("left_camera", "")),
+                "right_camera": str(info.get("right_camera", "")),
+                "baseline_mm": float(info.get("baseline_mm") or 0.0),
+                "left_half": str(info.get("left_half", "robot left camera")),
+                "right_half": str(info.get("right_half", "robot right camera")),
+                "depth_enabled": False,
+                "note": "horizontal stereo pair; left/right judgment only",
+            }
+            processor = self.processor
+        if processor is not None:
+            processor.set_stereo_enabled(enabled)
+
+    def _bbox_camera_view(self, bbox: dict[str, Any] | None, frame_width: int) -> dict[str, Any]:
+        if not self.stereo_info.get("enabled") or not bbox or frame_width <= 0:
+            return {"view": "mono" if not self.stereo_info.get("enabled") else "unknown"}
+        half_width = frame_width / 2.0
+        x1 = float(bbox.get("x1", 0.0))
+        x2 = float(bbox.get("x2", 0.0))
+        center_x = (x1 + x2) / 2.0
+        left_overlap = max(0.0, min(x2, half_width) - max(x1, 0.0))
+        right_overlap = max(0.0, min(x2, float(frame_width)) - max(x1, half_width))
+        if left_overlap > 0.0 or right_overlap > 0.0:
+            view = "left" if left_overlap >= right_overlap else "right"
+        elif center_x < half_width:
+            view = "left"
+        else:
+            view = "right"
+        if view == "left":
+            local_center_x = center_x / max(half_width, 1.0)
+        else:
+            local_center_x = (center_x - half_width) / max(half_width, 1.0)
+        return {
+            "view": view,
+            "local_center_x": round(max(0.0, min(1.0, local_center_x)), 4),
+            "split_x": half_width,
+        }
+
+    def _apply_stereo_state(self, result: dict[str, Any], frame_width: int) -> dict[str, Any]:
+        if not self.stereo_info.get("enabled"):
+            return result
+        output = dict(result)
+        active_view = "unknown"
+        for key in ("track", "predicted_track", "measured_track", "paired_track"):
+            track = output.get(key)
+            if not isinstance(track, dict):
+                continue
+            next_track = dict(track)
+            view = self._bbox_camera_view(next_track.get("bbox"), frame_width)
+            existing_view = next_track.get("camera_view") if isinstance(next_track.get("camera_view"), dict) else {}
+            next_track["camera_view"] = {**view, **existing_view}
+            output[key] = next_track
+            if key in {"track", "predicted_track"} and next_track.get("visible") and active_view == "unknown":
+                active_view = str(view.get("view", "unknown"))
+        grounded_tracks = output.get("grounded_tracks")
+        if isinstance(grounded_tracks, list):
+            visible_grounded = []
+            for item in grounded_tracks:
+                if not isinstance(item, dict) or not item.get("visible"):
+                    continue
+                next_item = dict(item)
+                next_item["camera_view"] = self._bbox_camera_view(next_item.get("bbox"), frame_width)
+                next_item["camera_view"]["qwen_locked"] = True
+                visible_grounded.append(next_item)
+            if visible_grounded:
+                output["grounded_tracks"] = visible_grounded
+                primary_view = ""
+                primary = output.get("predicted_track") or output.get("track")
+                if isinstance(primary, dict):
+                    primary_view = str((primary.get("camera_view") or {}).get("view") or "")
+                paired = next(
+                    (
+                        item
+                        for item in visible_grounded
+                        if str((item.get("camera_view") or {}).get("view") or "") != primary_view
+                    ),
+                    None,
+                )
+                if paired is not None:
+                    output["paired_track"] = paired
+                elif not isinstance(output.get("paired_track"), dict):
+                    output.pop("paired_track", None)
+            elif not isinstance(output.get("paired_track"), dict):
+                output.pop("paired_track", None)
+        output["stereo"] = {**self.stereo_info, "active_view": active_view}
+        return output
 
     def start_processor(self, config: dict[str, Any], instruction: str) -> None:
         with self.processor_lock:
@@ -69,6 +167,7 @@ class SharedRemoteSession:
             effective_instruction = instruction.strip() or self.pending_instruction.strip()
             safe_instruction = effective_instruction or "manual ROI"
             self.processor = RemoteFrameProcessor(config, safe_instruction)
+            self.processor.set_stereo_enabled(bool(self.stereo_info.get("enabled", False)))
             self.processor.start()
             if self.pending_emergency_stop:
                 self.processor.set_emergency_stop(True)
@@ -245,6 +344,7 @@ class SharedRemoteSession:
                 "last_frame_at": self.last_frame_at,
                 "fps": round(self.camera_fps, 1),
                 "frame": dict(self.frame_size),
+                "stereo": dict(self.stereo_info),
             }
         if processor is not None:
             try:
@@ -259,6 +359,9 @@ class SharedRemoteSession:
                     "age_seconds": 0.0,
                     "reason": f"prediction refresh failed: {exc}",
                 }
+        width = int(frame_size.get("width") or 0)
+        if width > 0:
+            result = self._apply_stereo_state(result, width)
         return result
 
 
@@ -408,6 +511,7 @@ async def camera_websocket_endpoint(websocket: WebSocket) -> None:
         session.return_overlay = bool(hello.get("return_overlay", True))
         session.overlay_quality = int(hello.get("overlay_quality", 65))
         session.overlay_every_n = max(1, int(hello.get("overlay_every_n", 2)))
+        session.set_stereo_info(hello.get("stereo") if isinstance(hello.get("stereo"), dict) else None)
         session.start_processor(config, instruction)
         await websocket.send_text(
             json.dumps(
@@ -416,6 +520,7 @@ async def camera_websocket_endpoint(websocket: WebSocket) -> None:
                     "message": "camera stream ready",
                     "return_overlay": session.return_overlay,
                     "overlay_every_n": session.overlay_every_n,
+                    "stereo": session.stereo_info,
                 },
                 ensure_ascii=False,
             )

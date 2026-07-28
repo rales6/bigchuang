@@ -121,10 +121,51 @@ def _candidate_from_payload(
         or payload.get("name")
         or fallback_name
     )
+    camera_view = str(
+        payload.get("camera_view")
+        or payload.get("view")
+        or payload.get("camera")
+        or ""
+    ).lower().strip()
     return GroundedCandidate(
         target_name=target_name,
         bbox=bbox,
         confidence=max(0.0, min(confidence, 1.0)),
+        camera_view=camera_view if camera_view in {"left", "right", "both"} else "",
+    )
+
+
+def _normalize_stereo_candidate(
+    candidate: GroundedCandidate,
+    view_name: str,
+    frame_width: int,
+    frame_height: int,
+) -> GroundedCandidate:
+    half_width = frame_width / 2.0
+    center_x, _ = candidate.bbox.center
+    bbox = candidate.bbox
+
+    # 兼容 Qwen 把左右半图分别当成 0-1000 坐标系的情况。
+    if view_name == "right" and center_x < half_width:
+        bbox = BBox(
+            half_width + bbox.x1 / 2.0,
+            bbox.y1,
+            half_width + bbox.x2 / 2.0,
+            bbox.y2,
+        ).clamp(frame_width, frame_height)
+    elif view_name == "left" and center_x > half_width:
+        bbox = BBox(
+            bbox.x1 / 2.0,
+            bbox.y1,
+            bbox.x2 / 2.0,
+            bbox.y2,
+        ).clamp(frame_width, frame_height)
+
+    return GroundedCandidate(
+        target_name=candidate.target_name,
+        bbox=bbox,
+        confidence=candidate.confidence,
+        camera_view=view_name,
     )
 
 
@@ -155,6 +196,36 @@ def parse_grounding_output(
         except (TypeError, ValueError):
             confidence = 0.0
         coordinate_system = str(payload.get("coordinate_system", "relative_1000"))
+        # 双摄结构化输出：允许 Qwen 分别返回 left/right 两个视角。
+        stereo_candidates = []
+        for view_name in ("left", "right"):
+            view_payload = payload.get(view_name)
+            if not isinstance(view_payload, dict) or not bool(view_payload.get("found", False)):
+                continue
+            parsed = _candidate_from_payload(
+                payload={**view_payload, "camera_view": view_name},
+                frame_width=frame_width,
+                frame_height=frame_height,
+                default_coordinate_system=str(view_payload.get("coordinate_system", coordinate_system)),
+                minimum_box_area_ratio=minimum_box_area_ratio,
+                fallback_name=f"{target_name}_{view_name}",
+            )
+            if parsed is not None:
+                stereo_candidates.append(
+                    _normalize_stereo_candidate(parsed, view_name, frame_width, frame_height)
+                )
+        if found and stereo_candidates:
+            stereo_candidates.sort(key=lambda item: item.bbox.x1)
+            first = stereo_candidates[0]
+            return GroundingResult(
+                found=True,
+                bbox=first.bbox,
+                target_name=first.target_name,
+                confidence=first.confidence,
+                raw_text=raw_text,
+                message=f"{len(stereo_candidates)} stereo target candidates grounded",
+                candidates=stereo_candidates,
+            )
         # 兼容多目标输出：Qwen 可以返回 targets 数组，也可以继续返回旧的单 bbox。
         targets = payload.get("targets")
         if isinstance(targets, list):
@@ -233,6 +304,7 @@ def parse_grounding_output(
                 target_name=target_name,
                 bbox=bbox,
                 confidence=max(0.0, min(confidence, 1.0)),
+                camera_view="",
             )
         ],
     )

@@ -177,3 +177,16 @@ python .\scripts\run_web_console.py --camera-mode remote --server ws://127.0.0.1
 ```
 
 如需手动指定视频流地址，可额外加 `--video-url http://<地址>:<端口>/stream.mjpg`。
+# 双摄像头网页显示
+
+双摄像头模式下，Windows 端仍然只启动网页控制台，不直接打开摄像头。树莓派会把左右摄像头拼成一张 side-by-side 图上传给 3090，网页通过 `stream.mjpg` 显示拼接画面，并通过 `/state` 显示目标位于 `left/right/both`。
+
+启动网页：
+
+```powershell
+cd F:\bigchuang\windows摄像头
+.\.venv\Scripts\Activate.ps1
+python .\scripts\run_web_console.py --camera-mode remote --server ws://192.168.55.33:8000/camera_ws --host 127.0.0.1 --port 7860
+```
+
+页面指标里的 `Camera View` 表示当前追踪目标位于左摄像头、右摄像头，还是跨过两侧中线。画面中间的虚线是左右摄像头分界线，不表示深度。黄/绿实线框是参与控制的主追踪框；蓝色虚线框是 Qwen 在另一侧摄像头真实识别到目标时返回的 paired track，只用于观察参考，不直接参与小车控制。只有一个摄像头看到目标时，网页只显示那一侧的锁定框。

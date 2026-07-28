@@ -678,3 +678,22 @@ python .\scripts\run_web_console.py --camera-mode remote --server ws://192.168.5
 ```
 
 如果走 SSH 隧道，把 `--server` 改成 `ws://127.0.0.1:8001/camera_ws`，网页会自动使用 `http://127.0.0.1:8001/stream.mjpg`。
+# 双摄像头左右拼接模式
+
+3090 服务端现在可以接收树莓派上传的 side-by-side 双摄像头画面。当前阶段不做深度估计，只记录双摄元信息，并根据追踪框在拼接图中的位置判断目标来自：
+
+```text
+left   目标中心在左半图，小车左摄像头视野
+right  目标中心在右半图，小车右摄像头视野
+both   追踪框跨过左右中线
+```
+
+启动 3090 不需要换命令：
+
+```bash
+cd ~/3090
+source .venv/bin/activate
+python scripts/run_3090_server.py --config configs/linux_3090_remote.yaml --host 0.0.0.0 --port 8000
+```
+
+树莓派 hello 中带 `stereo.enabled=true` 后，`/state` 会新增 `stereo` 字段，`track/predicted_track/measured_track` 里会新增 `camera_view`。Windows 网页会显示 Camera View，并在拼接图中间画一条左右分界线。

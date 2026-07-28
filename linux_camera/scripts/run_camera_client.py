@@ -110,6 +110,55 @@ class RemoteReceiver(threading.Thread):
             return response, overlay, responses, self.last_error
 
 
+class LatestCameraReader(threading.Thread):
+    """后台持续读取单个摄像头，主线程只取最新帧用于双摄拼接。"""
+
+    def __init__(self, name: str, camera: OpenCVCamera) -> None:
+        super().__init__(daemon=True)
+        self.name = name
+        self.camera = camera
+        self.stop_event = threading.Event()
+        self.lock = threading.RLock()
+        self.latest_frame: np.ndarray | None = None
+        self.frames = 0
+        self.read_ms_sum = 0.0
+        self.last_frame_at = 0.0
+        self.last_error = ""
+
+    def run(self) -> None:
+        while not self.stop_event.is_set():
+            started = monotonic()
+            try:
+                frame = self.camera.read_latest(0)
+            except Exception as exc:
+                self.last_error = str(exc)
+                sleep(0.05)
+                continue
+            read_ms = (monotonic() - started) * 1000.0
+            if frame is None:
+                sleep(0.005)
+                continue
+            with self.lock:
+                self.latest_frame = frame
+                self.frames += 1
+                self.read_ms_sum += read_ms
+                self.last_frame_at = monotonic()
+
+    def snapshot(self) -> tuple[np.ndarray | None, float]:
+        with self.lock:
+            frame = None if self.latest_frame is None else self.latest_frame.copy()
+            return frame, self.last_frame_at
+
+    def stats(self) -> tuple[int, float, str]:
+        with self.lock:
+            frames = self.frames
+            avg_read = self.read_ms_sum / max(frames, 1)
+            error = self.last_error
+            self.frames = 0
+            self.read_ms_sum = 0.0
+            return frames, avg_read, error
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Raspberry Pi camera uploader for the 3090 tracker server."
@@ -125,6 +174,10 @@ def main() -> int:
         help="Optional initial instruction; Windows web console can also send it later.",
     )
     parser.add_argument("--camera", default="0", help="OpenCV camera index or stream URL")
+    parser.add_argument("--left-camera", default="", help="Left camera index on the robot; enables stereo mode with --right-camera")
+    parser.add_argument("--right-camera", default="", help="Right camera index on the robot; enables stereo mode with --left-camera")
+    parser.add_argument("--swap-cameras", action="store_true", help="Swap left/right frames before stitching when physical camera order is reversed")
+    parser.add_argument("--baseline-mm", type=float, default=0.0, help="Horizontal distance between left/right cameras; recorded only, no depth is computed")
     parser.add_argument("--backend", default="v4l2", help="OpenCV backend: any, v4l2")
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
@@ -175,16 +228,49 @@ def main() -> int:
     parser.add_argument("--arm-duration-ms", type=int, default=800)
     args = parser.parse_args()
 
-    camera = OpenCVCamera(
-        source=_source(args.camera),
-        width=args.width,
-        height=args.height,
-        fps=args.fps,
-        backend=args.backend,
-        side_by_side=args.side_by_side,
-        buffer_size=args.camera_buffer,
-        fourcc=args.fourcc,
-    )
+    stereo_enabled = bool(args.left_camera and args.right_camera)
+    if (args.left_camera and not args.right_camera) or (args.right_camera and not args.left_camera):
+        raise SystemExit("--left-camera and --right-camera must be provided together")
+    display_left_camera = args.right_camera if args.swap_cameras else args.left_camera
+    display_right_camera = args.left_camera if args.swap_cameras else args.right_camera
+
+    camera: OpenCVCamera | None = None
+    left_camera: OpenCVCamera | None = None
+    right_camera: OpenCVCamera | None = None
+    left_reader: LatestCameraReader | None = None
+    right_reader: LatestCameraReader | None = None
+    if stereo_enabled:
+        left_camera = OpenCVCamera(
+            source=_source(args.left_camera),
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+            backend=args.backend,
+            side_by_side="none",
+            buffer_size=args.camera_buffer,
+            fourcc=args.fourcc,
+        )
+        right_camera = OpenCVCamera(
+            source=_source(args.right_camera),
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+            backend=args.backend,
+            side_by_side="none",
+            buffer_size=args.camera_buffer,
+            fourcc=args.fourcc,
+        )
+    else:
+        camera = OpenCVCamera(
+            source=_source(args.camera),
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+            backend=args.backend,
+            side_by_side=args.side_by_side,
+            buffer_size=args.camera_buffer,
+            fourcc=args.fourcc,
+        )
     robot = RobotCommandDispatcher(
         mode=args.robot_mode,
         serial_port=args.robot_serial_port,
@@ -204,7 +290,17 @@ def main() -> int:
         arm_duration_ms=args.arm_duration_ms,
         debug_log=args.robot_debug_log,
     )
-    camera.open()
+    if stereo_enabled:
+        assert left_camera is not None and right_camera is not None
+        left_camera.open()
+        right_camera.open()
+        left_reader = LatestCameraReader("left", left_camera)
+        right_reader = LatestCameraReader("right", right_camera)
+        left_reader.start()
+        right_reader.start()
+    else:
+        assert camera is not None
+        camera.open()
     robot.open()
     ws = create_connection(args.server, timeout=10)
     ws.send(
@@ -215,12 +311,30 @@ def main() -> int:
                 "return_overlay": not args.no_overlay,
                 "overlay_quality": args.overlay_quality,
                 "overlay_every_n": args.overlay_every_n,
+                "stereo": {
+                    "enabled": stereo_enabled,
+                    "layout": "side_by_side" if stereo_enabled else "mono",
+                    "left_camera": str(display_left_camera) if stereo_enabled else "",
+                    "right_camera": str(display_right_camera) if stereo_enabled else "",
+                    "baseline_mm": float(args.baseline_mm),
+                    "left_half": "robot left camera",
+                    "right_half": "robot right camera",
+                    "depth_enabled": False,
+                    "note": "horizontal stereo pair; used for left/right judgment and tracking only",
+                },
             },
             ensure_ascii=False,
         )
     )
     print(f"[3090] {json.loads(ws.recv())}")
-    print("[Pi camera] streaming frames. Press Ctrl+C to stop.")
+    if stereo_enabled:
+        print(
+            "[Pi stereo camera] streaming side-by-side frames. "
+            f"left={display_left_camera} right={display_right_camera}; "
+            f"swap={args.swap_cameras}; target upload FPS={args.remote_fps}"
+        )
+    else:
+        print("[Pi camera] streaming frames. Press Ctrl+C to stop.")
     send_lock = threading.Lock()
     receiver = RemoteReceiver(ws, robot, decode_overlay=args.window)
     receiver.start()
@@ -242,20 +356,49 @@ def main() -> int:
 
     try:
         while True:
-            read_started = monotonic()
-            frame = camera.read_latest(args.drop_stale_frames)
-            read_ms_sum += (monotonic() - read_started) * 1000.0
-            if frame is None:
-                print("[Camera] frame missing")
-                sleep(0.02)
-                continue
+            if stereo_enabled:
+                now = monotonic()
+                if now < next_send_at:
+                    sleep(min(0.01, next_send_at - now))
+                    continue
+                next_send_at = now + remote_interval
+            if stereo_enabled:
+                assert left_reader is not None and right_reader is not None
+                left_frame, left_at = left_reader.snapshot()
+                right_frame, right_at = right_reader.snapshot()
+                if left_frame is None or right_frame is None:
+                    print("[Stereo camera] waiting for both left/right frames")
+                    sleep(0.02)
+                    continue
+                if args.swap_cameras:
+                    left_frame, right_frame = right_frame, left_frame
+                    left_at, right_at = right_at, left_at
+                if abs(left_at - right_at) > 0.12:
+                    print(f"[Stereo camera] warning: left/right timestamps differ by {abs(left_at - right_at) * 1000.0:.0f}ms")
+                if left_frame.shape[:2] != right_frame.shape[:2]:
+                    right_frame = cv2.resize(
+                        right_frame,
+                        (left_frame.shape[1], left_frame.shape[0]),
+                        interpolation=cv2.INTER_AREA,
+                    )
+                frame = np.hstack([left_frame, right_frame])
+            else:
+                assert camera is not None
+                read_started = monotonic()
+                frame = camera.read_latest(args.drop_stale_frames)
+                read_ms_sum += (monotonic() - read_started) * 1000.0
+                if frame is None:
+                    print("[Camera] frame missing")
+                    sleep(0.02)
+                    continue
             last_raw_frame = frame.copy()
 
             now = monotonic()
-            if now < next_send_at:
+            if not stereo_enabled and now < next_send_at:
                 sleep(min(0.01, next_send_at - now))
                 continue
-            next_send_at = now + remote_interval
+            if not stereo_enabled:
+                next_send_at = now + remote_interval
 
             # 树莓派先压缩/降采样再上传，减轻无线网络和 3090 解码压力。
             resize_started = monotonic()
@@ -297,6 +440,18 @@ def main() -> int:
                 camera_state = response.get("camera", {})
                 if not isinstance(camera_state, dict):
                     camera_state = {}
+                if stereo_enabled and left_reader is not None and right_reader is not None:
+                    left_count, left_read_ms, left_error = left_reader.stats()
+                    right_count, right_read_ms, right_error = right_reader.stats()
+                    camera_stats = (
+                        f"left_fps={left_count / max(elapsed, 1e-3):.1f} "
+                        f"right_fps={right_count / max(elapsed, 1e-3):.1f} "
+                        f"read_l={left_read_ms:.1f}ms read_r={right_read_ms:.1f}ms "
+                    )
+                    if left_error or right_error:
+                        print(f"[Stereo camera] left_error={left_error} right_error={right_error}")
+                else:
+                    camera_stats = f"read={read_ms_sum / max(sent_frames, 1):.1f}ms "
                 print(
                     f"[Remote] sent_fps={sent_frames / max(elapsed, 1e-3):.1f} "
                     f"recv_fps={received_frames / max(elapsed, 1e-3):.1f} "
@@ -306,7 +461,7 @@ def main() -> int:
                     f"guidance={guidance.get('direction')} "
                     f"blocked={response.get('safety', {}).get('blocked')} "
                     f"avg_jpeg={sent_kb / max(sent_frames, 1):.0f}KB "
-                    f"read={read_ms_sum / max(sent_frames, 1):.1f}ms "
+                    f"{camera_stats}"
                     f"resize={resize_ms_sum / max(sent_frames, 1):.1f}ms "
                     f"encode={encode_ms_sum / max(sent_frames, 1):.1f}ms "
                     f"send={send_ms_sum / max(sent_frames, 1):.1f}ms"
@@ -364,7 +519,16 @@ def main() -> int:
         print("\n[Pi camera] stopping")
     finally:
         receiver.stop_event.set()
-        camera.close()
+        if left_reader is not None:
+            left_reader.stop_event.set()
+        if right_reader is not None:
+            right_reader.stop_event.set()
+        if camera is not None:
+            camera.close()
+        if left_camera is not None:
+            left_camera.close()
+        if right_camera is not None:
+            right_camera.close()
         robot.close()
         ws.close()
         if args.window:

@@ -105,6 +105,59 @@
         width: 100%;
         height: 100%;
         cursor: crosshair;
+        z-index: 2;
+      }
+      .motion-indicator {
+        position: absolute;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 156px;
+        justify-content: center;
+        padding: 10px 16px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(10, 14, 22, 0.86);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+        color: var(--text);
+        pointer-events: none;
+      }
+      .motion-symbol {
+        display: grid;
+        place-items: center;
+        min-width: 54px;
+        min-height: 28px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+      .motion-label {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+      .motion-indicator.forward {
+        border-color: rgba(16, 163, 127, 0.85);
+        background: rgba(7, 43, 34, 0.88);
+      }
+      .motion-indicator.left,
+      .motion-indicator.right {
+        border-color: rgba(250, 204, 21, 0.9);
+        background: rgba(62, 49, 10, 0.88);
+      }
+      .motion-indicator.backward {
+        border-color: rgba(56, 189, 248, 0.9);
+        background: rgba(8, 38, 58, 0.88);
+      }
+      .motion-indicator.stop {
+        border-color: rgba(239, 68, 68, 0.9);
+        background: rgba(62, 24, 32, 0.9);
       }
       .ops {
         min-width: 0;
@@ -414,6 +467,10 @@
           <div class="video-wrap" id="videoWrap">
             <img id="video" src="/stream.mjpg" alt="camera stream" draggable="false" />
             <canvas id="roiCanvas"></canvas>
+            <div class="motion-indicator stop" id="motionIndicator">
+              <span class="motion-symbol" id="motionSymbol">STOP</span>
+              <span class="motion-label" id="motionLabel">停止</span>
+            </div>
           </div>
         </div>
       </section>
@@ -430,6 +487,7 @@
         <div class="metrics">
           <div class="metric"><span>Target</span><b id="track">waiting</b></div>
           <div class="metric"><span>Motion / Box</span><b><span id="direction">STOP</span> / <span id="box">none</span></b></div>
+          <div class="metric"><span>Motion Reason</span><b id="motionReason">-</b></div>
           <div class="metric"><span>Grounding</span><b id="grounding">-</b></div>
           <div class="metric"><span>Boundary</span><b id="boundary">-</b></div>
           <div class="metric"><span>YOLO</span><b id="obstacles">-</b></div>
@@ -437,6 +495,7 @@
           <div class="metric"><span>Robot Task</span><b id="robotTask">idle</b></div>
           <div class="metric"><span>Robot Command</span><b id="robotCommand">vision / idle</b></div>
           <div class="metric"><span>Target Queue</span><b id="targetQueue">-</b></div>
+          <div class="metric"><span>Camera View</span><b id="cameraView">mono</b></div>
         </div>
       </section>
 
@@ -467,6 +526,7 @@
         fps: document.querySelector("#fps"),
         track: document.querySelector("#track"),
         direction: document.querySelector("#direction"),
+        motionReason: document.querySelector("#motionReason"),
         box: document.querySelector("#box"),
         grounding: document.querySelector("#grounding"),
         boundary: document.querySelector("#boundary"),
@@ -475,12 +535,16 @@
         robotTask: document.querySelector("#robotTask"),
         robotCommand: document.querySelector("#robotCommand"),
         targetQueue: document.querySelector("#targetQueue"),
+        cameraView: document.querySelector("#cameraView"),
         messages: document.querySelector("#messages"),
         form: document.querySelector("#sendForm"),
         message: document.querySelector("#message"),
         video: document.querySelector("#video"),
         canvas: document.querySelector("#roiCanvas"),
         videoWrap: document.querySelector("#videoWrap"),
+        motionIndicator: document.querySelector("#motionIndicator"),
+        motionSymbol: document.querySelector("#motionSymbol"),
+        motionLabel: document.querySelector("#motionLabel"),
         applyRoi: document.querySelector("#applyRoi"),
       };
       let lastChatJson = "";
@@ -492,7 +556,9 @@
       let visualState = {
         frame: { width: 0, height: 0 },
         track: null,
+        pairedTrack: null,
         prediction: {},
+        stereo: {},
         receivedAt: performance.now(),
       };
 
@@ -580,7 +646,7 @@
         return { ...track, bbox: nextBox, contour, predictedAge: totalAge };
       }
 
-      function drawPredictedTrack(ctx, image, track) {
+      function drawPredictedTrack(ctx, image, track, paired = false) {
         if (!track?.visible || !track.bbox) return;
         const box = track.bbox;
         ctx.save();
@@ -588,9 +654,9 @@
         ctx.lineCap = "round";
         ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
         ctx.shadowBlur = 4;
-        ctx.strokeStyle = "#22c55e";
+        ctx.strokeStyle = paired ? "#38bdf8" : "#22c55e";
         ctx.lineWidth = 3;
-        ctx.setLineDash([]);
+        ctx.setLineDash(paired ? [10, 7] : []);
         const contour = Array.isArray(track.contour) ? track.contour : [];
         if (contour.length >= 3) {
           ctx.beginPath();
@@ -605,12 +671,12 @@
         }
         const p1 = framePointToCanvas({ x: box.x1, y: box.y1 }, image);
         const p2 = framePointToCanvas({ x: box.x2, y: box.y2 }, image);
-        ctx.strokeStyle = "#facc15";
+        ctx.strokeStyle = paired ? "#7dd3fc" : "#facc15";
         ctx.lineWidth = 2;
         ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
         const cx = (p1.x + p2.x) / 2;
         const cy = (p1.y + p2.y) / 2;
-        ctx.strokeStyle = "#fde047";
+        ctx.strokeStyle = paired ? "#bae6fd" : "#fde047";
         ctx.beginPath();
         ctx.moveTo(cx - 8, cy);
         ctx.lineTo(cx + 8, cy);
@@ -618,6 +684,31 @@
         ctx.lineTo(cx, cy + 8);
         ctx.stroke();
         ctx.restore();
+      }
+
+      function motionDisplay(guidance) {
+        const direction = String(guidance?.direction || "STOP").toUpperCase();
+        if (direction === "TURN_LEFT") {
+          return { className: "left", symbol: "LEFT", label: "左转" };
+        }
+        if (direction === "TURN_RIGHT") {
+          return { className: "right", symbol: "RIGHT", label: "右转" };
+        }
+        if (direction === "FORWARD") {
+          return { className: "forward", symbol: "GO", label: "直行" };
+        }
+        if (direction === "BACKWARD") {
+          return { className: "backward", symbol: "BACK", label: "后退" };
+        }
+        return { className: "stop", symbol: "STOP", label: "停止" };
+      }
+
+      function updateMotionIndicator(guidance) {
+        const display = motionDisplay(guidance);
+        els.motionIndicator.className = `motion-indicator ${display.className}`;
+        els.motionSymbol.textContent = display.symbol;
+        els.motionLabel.textContent = display.label;
+        els.motionIndicator.title = guidance?.reason || "";
       }
 
       function drawOverlay() {
@@ -628,7 +719,20 @@
         ctx.clearRect(0, 0, rect.width, rect.height);
         const predictedTrack = predictTrackForNow();
         const image = imageRect();
+        if (visualState.stereo?.enabled) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(148, 163, 184, 0.75)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([8, 8]);
+          const splitX = image.x + image.width / 2;
+          ctx.beginPath();
+          ctx.moveTo(splitX, image.y);
+          ctx.lineTo(splitX, image.y + image.height);
+          ctx.stroke();
+          ctx.restore();
+        }
         drawPredictedTrack(ctx, image, predictedTrack);
+        drawPredictedTrack(ctx, image, visualState.pairedTrack, true);
         if (!roi) return;
         const x = Math.min(roi.x1, roi.x2);
         const y = Math.min(roi.y1, roi.y2);
@@ -761,11 +865,15 @@
           visualState = {
             frame: status.frame || visualState.frame,
             track: status.predicted_track || status.track || null,
+            pairedTrack: status.paired_track || null,
             prediction: status.prediction || {},
+            stereo: status.stereo || {},
             receivedAt: performance.now(),
           };
           els.track.textContent = status.track?.status || "-";
           els.direction.textContent = status.guidance?.direction || "STOP";
+          els.motionReason.textContent = status.guidance?.reason || "-";
+          updateMotionIndicator(status.guidance || {});
           els.grounding.textContent = status.grounding_status;
           els.boundary.textContent = status.boundary_mode;
           els.obstacles.textContent = status.obstacles;
@@ -782,6 +890,11 @@
           els.targetQueue.textContent = queue.length
             ? `active ${active || "-"} / ${queue.length}, done ${done}`
             : "-";
+          const stereo = status.stereo || {};
+          const cameraView = status.predicted_track?.camera_view || status.track?.camera_view || {};
+          els.cameraView.textContent = stereo.enabled
+            ? `${cameraView.view || stereo.active_view || "unknown"} / L${stereo.left_camera || "-"} R${stereo.right_camera || "-"}`
+            : "mono";
           els.storePath.textContent = status.chat_store_path || "outputs/chat_history.json";
           const box = status.track?.bbox;
           els.box.textContent = box

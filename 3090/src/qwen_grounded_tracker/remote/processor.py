@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import Any
 
+import cv2
 import numpy as np
 
 from qwen_grounded_tracker.config import section
@@ -245,6 +246,20 @@ class RemoteFrameProcessor:
             "action": "idle",
             "reason": "No active task",
         }
+        self.latest_grounded_tracks: list[dict[str, Any]] = []
+        stereo_pair_cfg = section(config, "stereo_pair")
+        self.stereo_enabled = False
+        self.stereo_pair_match_threshold = float(
+            stereo_pair_cfg.get("match_threshold", 0.42)
+        )
+        self.stereo_pair_fallback_shift_ratio = float(
+            stereo_pair_cfg.get("fallback_shift_ratio", 0.08)
+        )
+        self.stereo_tracked_weight = float(stereo_pair_cfg.get("tracked_weight", 1.0))
+        self.stereo_matched_weight = float(stereo_pair_cfg.get("matched_weight", 0.75))
+        self.stereo_estimated_weight = float(stereo_pair_cfg.get("estimated_weight", 0.30))
+        self.stereo_left_center_bias = float(stereo_pair_cfg.get("left_center_bias", 0.06))
+        self.stereo_right_center_bias = float(stereo_pair_cfg.get("right_center_bias", -0.06))
 
     def start(self) -> None:
         self.lidar.open()
@@ -252,6 +267,9 @@ class RemoteFrameProcessor:
     def close(self) -> None:
         self.grounding_worker.close()
         self.lidar.close()
+
+    def set_stereo_enabled(self, enabled: bool) -> None:
+        self.stereo_enabled = bool(enabled)
 
     def set_instruction(self, instruction: str) -> None:
         instruction = instruction.strip()
@@ -262,6 +280,7 @@ class RemoteFrameProcessor:
         self.target = None
         self.target_queue = []
         self.active_queue_index = -1
+        self.latest_grounded_tracks = []
         self._reset_tracking(keep_reference=False)
         self.grounding_status = "instruction changed; waiting for next frame"
         self.grounding_requested = True
@@ -275,6 +294,7 @@ class RemoteFrameProcessor:
         self.target = None
         self.target_queue = []
         self.active_queue_index = -1
+        self.latest_grounded_tracks = []
         self.robot_task.reset()
         self._reset_tracking(keep_reference=False)
         self.grounding_status = "reset; press G on the camera client to ground again"
@@ -396,6 +416,51 @@ class RemoteFrameProcessor:
         self.target_queue = queue
         self.active_queue_index = -1
 
+    @staticmethod
+    def _candidate_view(candidate: GroundedCandidate, frame_width: int) -> str:
+        if candidate.camera_view in {"left", "right", "both"}:
+            return candidate.camera_view
+        center_x, _ = candidate.bbox.center
+        return "left" if center_x < frame_width / 2.0 else "right"
+
+    def _store_grounded_candidates(
+        self,
+        candidates: list[GroundedCandidate],
+        response: GroundingResponse,
+        current_frame: np.ndarray,
+    ) -> None:
+        height, width = current_frame.shape[:2]
+        stored: list[dict[str, Any]] = []
+        for candidate in candidates:
+            try:
+                relocation = self.relocator.relocate(
+                    snapshot=response.snapshot,
+                    snapshot_bbox=candidate.bbox,
+                    current_frame=current_frame,
+                )
+                bbox = relocation.bbox
+                method = relocation.method
+                score = relocation.score
+            except Exception:
+                bbox = candidate.bbox.clamp(width, height)
+                method = "snapshot"
+                score = float(candidate.confidence)
+            view = self._candidate_view(candidate, width)
+            stored.append(
+                {
+                    "visible": True,
+                    "logical_target_id": f"qwen_{view}",
+                    "bbox": _bbox_payload(bbox),
+                    "contour": None,
+                    "identity_score": float(candidate.confidence),
+                    "status": f"qwen locked {view}; {method} {score:.2f}",
+                    "lost_seconds": 0.0,
+                    "camera_view": {"view": view, "qwen_locked": True},
+                    "target_name": candidate.target_name,
+                }
+            )
+        self.latest_grounded_tracks = stored
+
     def _submit_grounding(self, frame: np.ndarray, reason: str) -> None:
         self.instruction = self.robot_task.current_grounding_instruction or self.instruction
         reference = self.target.reference_crop if self.target is not None else None
@@ -464,6 +529,10 @@ class RemoteFrameProcessor:
         else:
             self.consecutive_grounding_failures = 0
         fallback_used = result.message.startswith("fallback")
+        if result.candidates:
+            self._store_grounded_candidates(result.candidates, response, current_frame)
+        else:
+            self.latest_grounded_tracks = []
 
         if (
             self.robot_task.plan is not None
@@ -539,6 +608,7 @@ class RemoteFrameProcessor:
         )
         self.target_queue = []
         self.active_queue_index = -1
+        self.latest_grounded_tracks = []
         self.tracker.reset()
         self.tracker.initialize(frame, safe_bbox)
         self.identity_guard.reset()
@@ -593,6 +663,355 @@ class RemoteFrameProcessor:
             identity_score=self.target.identity_score,
             status=f"target lost {lost_seconds:.1f}s: {status}",
             lost_seconds=lost_seconds,
+        )
+
+    @staticmethod
+    def _bbox_view(bbox: BBox | None, frame_width: int) -> str:
+        if bbox is None or frame_width <= 0:
+            return "unknown"
+        half_width = frame_width / 2.0
+        left_overlap = max(0.0, min(bbox.x2, half_width) - max(bbox.x1, 0.0))
+        right_overlap = max(0.0, min(bbox.x2, float(frame_width)) - max(bbox.x1, half_width))
+        if left_overlap > 0.0 or right_overlap > 0.0:
+            return "left" if left_overlap >= right_overlap else "right"
+        center_x, _ = bbox.center
+        return "left" if center_x < half_width else "right"
+
+    @staticmethod
+    def _remap_contour_to_bbox(
+        contour: np.ndarray | None,
+        old_box: BBox,
+        new_box: BBox,
+    ) -> np.ndarray | None:
+        if contour is None or old_box.width <= 1 or old_box.height <= 1:
+            return None
+        points = contour.reshape(-1, 2).astype(np.float32)
+        nx = (points[:, 0] - old_box.x1) / old_box.width
+        ny = (points[:, 1] - old_box.y1) / old_box.height
+        points[:, 0] = new_box.x1 + nx * new_box.width
+        points[:, 1] = new_box.y1 + ny * new_box.height
+        return np.rint(points).astype(np.int32).reshape(-1, 1, 2)
+
+    def _match_paired_bbox(self, frame: np.ndarray, source_bbox: BBox) -> tuple[BBox, float] | None:
+        height, width = frame.shape[:2]
+        if width < 64 or height < 32:
+            return None
+        half_width = width // 2
+        source_view = self._bbox_view(source_bbox, width)
+        if source_view not in {"left", "right"}:
+            return None
+
+        source_half_x1 = 0 if source_view == "left" else half_width
+        source_half_x2 = half_width if source_view == "left" else width
+        safe_source = BBox(
+            max(source_bbox.x1, source_half_x1),
+            source_bbox.y1,
+            min(source_bbox.x2, source_half_x2),
+            source_bbox.y2,
+        ).clamp(width, height)
+        template = safe_source.crop(frame)
+        if template.size == 0 or template.shape[0] < 14 or template.shape[1] < 14:
+            return None
+
+        # 双目配对：用主追踪目标的真实裁剪，在另一半画面中找最像的位置。
+        search_x = half_width if source_view == "left" else 0
+        search = frame[:, search_x : search_x + half_width]
+        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        search_gray = cv2.cvtColor(search, cv2.COLOR_BGR2GRAY)
+        template_edges = cv2.Canny(template_gray, 40, 120)
+        search_edges = cv2.Canny(search_gray, 40, 120)
+
+        best_score = -1.0
+        best_box: BBox | None = None
+        for scale in (0.70, 0.82, 0.92, 1.0, 1.08, 1.18, 1.32):
+            tpl_w = int(round(template_gray.shape[1] * scale))
+            tpl_h = int(round(template_gray.shape[0] * scale))
+            if tpl_w < 10 or tpl_h < 10 or tpl_w >= half_width or tpl_h >= height:
+                continue
+
+            resized_gray = cv2.resize(template_gray, (tpl_w, tpl_h), interpolation=cv2.INTER_AREA)
+            gray_result = cv2.matchTemplate(search_gray, resized_gray, cv2.TM_CCOEFF_NORMED)
+            _, gray_score, _, gray_loc = cv2.minMaxLoc(gray_result)
+
+            resized_edges = cv2.resize(template_edges, (tpl_w, tpl_h), interpolation=cv2.INTER_AREA)
+            if float(np.count_nonzero(resized_edges)) > 8.0:
+                edge_result = cv2.matchTemplate(search_edges, resized_edges, cv2.TM_CCOEFF_NORMED)
+                _, edge_score, _, edge_loc = cv2.minMaxLoc(edge_result)
+                if edge_score > gray_score:
+                    score = 0.65 * float(edge_score) + 0.35 * float(gray_score)
+                    loc = edge_loc
+                else:
+                    score = 0.65 * float(gray_score) + 0.35 * float(edge_score)
+                    loc = gray_loc
+            else:
+                score = float(gray_score)
+                loc = gray_loc
+
+            if score > best_score:
+                x, y = loc
+                best_score = score
+                best_box = BBox(
+                    search_x + x,
+                    y,
+                    search_x + x + tpl_w,
+                    y + tpl_h,
+                ).clamp(width, height)
+
+        if best_box is None or best_score < self.stereo_pair_match_threshold:
+            return None
+        return best_box, best_score
+
+    def _estimate_paired_bbox(self, frame: np.ndarray, source_bbox: BBox) -> tuple[BBox, float] | None:
+        height, width = frame.shape[:2]
+        if width < 64 or height < 32:
+            return None
+        half_width = width / 2.0
+        source_view = self._bbox_view(source_bbox, width)
+        if source_view not in {"left", "right"}:
+            return None
+
+        source_offset = 0.0 if source_view == "left" else half_width
+        target_offset = half_width if source_view == "left" else 0.0
+        local_x1 = max(0.0, min(half_width - 1.0, source_bbox.x1 - source_offset))
+        local_x2 = max(local_x1 + 1.0, min(half_width, source_bbox.x2 - source_offset))
+        shift = half_width * max(0.0, min(self.stereo_pair_fallback_shift_ratio, 0.35))
+        if source_view == "left":
+            local_x1 -= shift
+            local_x2 -= shift
+        else:
+            local_x1 += shift
+            local_x2 += shift
+
+        box_width = local_x2 - local_x1
+        if local_x1 < 0.0:
+            local_x2 -= local_x1
+            local_x1 = 0.0
+        if local_x2 > half_width:
+            local_x1 -= local_x2 - half_width
+            local_x2 = half_width
+        local_x1 = max(0.0, min(local_x1, half_width - box_width))
+        local_x2 = local_x1 + box_width
+        bbox = BBox(
+            target_offset + local_x1,
+            source_bbox.y1,
+            target_offset + local_x2,
+            source_bbox.y2,
+        ).clamp(width, height)
+        return bbox, 0.18
+
+    def _paired_track_payload(
+        self,
+        frame: np.ndarray,
+        source_track: TrackObservation,
+    ) -> dict[str, Any] | None:
+        if not self.stereo_enabled or not source_track.visible or source_track.bbox is None:
+            return None
+        matched = self._match_paired_bbox(frame, source_track.bbox)
+        estimated = matched is None
+        if matched is None:
+            matched = self._estimate_paired_bbox(frame, source_track.bbox)
+        if matched is None:
+            return None
+        bbox, score = matched
+        paired_view = self._bbox_view(bbox, frame.shape[1])
+        contour = self._remap_contour_to_bbox(source_track.contour, source_track.bbox, bbox)
+        status = (
+            f"stereo estimated {paired_view}"
+            if estimated
+            else f"stereo visual match {paired_view} {score:.2f}"
+        )
+        payload = _track_payload(
+            TrackObservation(
+                visible=True,
+                logical_target_id=f"{source_track.logical_target_id or 'target'}_paired_{paired_view}",
+                bbox=bbox,
+                contour=contour,
+                identity_score=score,
+                status=status,
+                lost_seconds=0.0,
+            )
+        )
+        payload["camera_view"] = {
+            "view": paired_view,
+            "stereo_matched": not estimated,
+            "stereo_estimated": estimated,
+            "match_score": round(float(score), 3),
+        }
+        return payload
+
+    @staticmethod
+    def _local_stereo_bbox(bbox: BBox, view: str, frame_width: int, frame_height: int) -> BBox | None:
+        half_width = frame_width / 2.0
+        if view == "left":
+            offset = 0.0
+        elif view == "right":
+            offset = half_width
+        else:
+            return None
+        return BBox(
+            bbox.x1 - offset,
+            bbox.y1,
+            bbox.x2 - offset,
+            bbox.y2,
+        ).clamp(int(half_width), frame_height)
+
+    def _stereo_direction_guidance_legacy_unused(
+        self,
+        frame: np.ndarray,
+        control_track: TrackObservation,
+        paired_track: dict[str, Any] | None,
+    ) -> MotionGuidance | None:
+        if not self.stereo_enabled or not control_track.visible or control_track.bbox is None:
+            return None
+
+        height, width = frame.shape[:2]
+        half_width = width / 2.0
+        local_boxes: list[tuple[str, BBox]] = []
+        source_view = self._bbox_view(control_track.bbox, width)
+        source_local = self._local_stereo_bbox(control_track.bbox, source_view, width, height)
+        if source_local is not None:
+            local_boxes.append((source_view, source_local))
+
+        paired_bbox_payload = paired_track.get("bbox") if isinstance(paired_track, dict) else None
+        if isinstance(paired_bbox_payload, dict):
+            paired_box = BBox(
+                float(paired_bbox_payload.get("x1", 0.0)),
+                float(paired_bbox_payload.get("y1", 0.0)),
+                float(paired_bbox_payload.get("x2", 0.0)),
+                float(paired_bbox_payload.get("y2", 0.0)),
+            ).clamp(width, height)
+            paired_view = self._bbox_view(paired_box, width)
+            paired_local = self._local_stereo_bbox(paired_box, paired_view, width, height)
+            if paired_local is not None and paired_view != source_view:
+                local_boxes.append((paired_view, paired_local))
+
+        if not local_boxes:
+            return None
+
+        # 双目方向判断必须使用每个相机的局部中心，不能使用左右拼接图的整图中心。
+        centers = [box.center[0] / max(half_width, 1.0) for _, box in local_boxes]
+        avg_center = sum(centers) / len(centers)
+        avg_width = sum(box.width for _, box in local_boxes) / len(local_boxes)
+        avg_height = sum(box.height for _, box in local_boxes) / len(local_boxes)
+        avg_y = sum(box.center[1] for _, box in local_boxes) / len(local_boxes)
+        pseudo_box = BBox(
+            avg_center * half_width - avg_width / 2.0,
+            avg_y - avg_height / 2.0,
+            avg_center * half_width + avg_width / 2.0,
+            avg_y + avg_height / 2.0,
+        ).clamp(int(half_width), height)
+        guidance = self.direction_planner.plan(
+            bbox=pseudo_box,
+            frame_width=int(half_width),
+            frame_height=height,
+        )
+        views = ",".join(view for view, _ in local_boxes)
+        error_x = avg_center - self.direction_planner.center_x
+        return MotionGuidance(
+            guidance.direction,
+            guidance.linear,
+            guidance.angular,
+            f"stereo local views={views} error={error_x:.3f}; {guidance.reason}",
+        )
+
+    def _stereo_direction_guidance(
+        self,
+        frame: np.ndarray,
+        control_track: TrackObservation,
+        paired_track: dict[str, Any] | None,
+    ) -> MotionGuidance | None:
+        if not self.stereo_enabled or not control_track.visible or control_track.bbox is None:
+            return None
+
+        height, width = frame.shape[:2]
+        half_width = width / 2.0
+        source_view = self._bbox_view(control_track.bbox, width)
+        source_local = self._local_stereo_bbox(control_track.bbox, source_view, width, height)
+        if source_local is None:
+            return None
+
+        local_boxes: list[tuple[str, BBox, str]] = [(source_view, source_local, "tracked")]
+        paired_bbox_payload = paired_track.get("bbox") if isinstance(paired_track, dict) else None
+        paired_camera_view = paired_track.get("camera_view") if isinstance(paired_track, dict) else {}
+        if isinstance(paired_bbox_payload, dict):
+            paired_box = BBox(
+                float(paired_bbox_payload.get("x1", 0.0)),
+                float(paired_bbox_payload.get("y1", 0.0)),
+                float(paired_bbox_payload.get("x2", 0.0)),
+                float(paired_bbox_payload.get("y2", 0.0)),
+            ).clamp(width, height)
+            paired_view = self._bbox_view(paired_box, width)
+            paired_local = self._local_stereo_bbox(paired_box, paired_view, width, height)
+            if paired_local is not None and paired_view != source_view:
+                source_name = "estimated" if paired_camera_view.get("stereo_estimated") else "matched"
+                local_boxes.append((paired_view, paired_local, source_name))
+
+        observations: list[dict[str, Any]] = []
+        for view, box, source in local_boxes:
+            raw_center = box.center[0] / max(half_width, 1.0)
+            bias = self.stereo_left_center_bias if view == "left" else self.stereo_right_center_bias
+            adjusted_center = max(0.0, min(1.0, raw_center - bias))
+            if source == "tracked":
+                weight = self.stereo_tracked_weight
+            elif source == "matched":
+                weight = self.stereo_matched_weight
+            else:
+                weight = self.stereo_estimated_weight
+            observations.append(
+                {
+                    "view": view,
+                    "box": box,
+                    "raw_center": raw_center,
+                    "center": adjusted_center,
+                    "weight": weight,
+                    "source": source,
+                }
+            )
+
+        total_weight = max(sum(max(0.0, item["weight"]) for item in observations), 1e-6)
+        fused_center = sum(
+            item["center"] * max(0.0, item["weight"]) for item in observations
+        ) / total_weight
+        area_ratios = [item["box"].area_ratio(int(half_width), height) for item in observations]
+        weighted_area = sum(
+            area * max(0.0, item["weight"])
+            for area, item in zip(area_ratios, observations)
+        ) / total_weight
+        max_area = max(area_ratios) if area_ratios else 0.0
+        error_x = fused_center - self.direction_planner.center_x
+
+        if max_area >= self.direction_planner.too_close_area_ratio:
+            direction = "BACKWARD"
+            linear = -self.direction_planner.backward_speed
+            angular = 0.0
+            decision_reason = f"target too close max_area={max_area:.3f}"
+        elif abs(error_x) > self.direction_planner.center_tolerance:
+            direction = "TURN_RIGHT" if error_x > 0 else "TURN_LEFT"
+            linear = 0.0
+            angular = -self.direction_planner.angular_speed if error_x > 0 else self.direction_planner.angular_speed
+            decision_reason = f"stereo horizontal error={error_x:.3f}"
+        elif weighted_area >= self.direction_planner.stop_area_ratio:
+            direction = "STOP"
+            linear = 0.0
+            angular = 0.0
+            decision_reason = f"target reached weighted_area={weighted_area:.3f}"
+        else:
+            direction = "FORWARD"
+            linear = self.direction_planner.linear_speed
+            angular = 0.0
+            decision_reason = f"target centered weighted_area={weighted_area:.3f}"
+
+        views = ",".join(
+            f"{item['view']}:{item['source']} raw={item['raw_center']:.2f} "
+            f"adj={item['center']:.2f} w={item['weight']:.2f}"
+            for item in observations
+        )
+        return MotionGuidance(
+            direction,
+            linear,
+            angular,
+            f"stereo fused center={fused_center:.3f} area={weighted_area:.3f}; "
+            f"{views}; {decision_reason}",
         )
 
     def _maybe_auto_reground(self, frame: np.ndarray, track: TrackObservation) -> None:
@@ -654,6 +1073,7 @@ class RemoteFrameProcessor:
         self.latest_measured_track = track
         self.latest_control_track = control_track
         self.latest_prediction_state = dict(prediction_state)
+        paired_track = self._paired_track_payload(frame, track if track.visible else control_track)
 
         if self.grounding_worker.busy:
             self.grounding_status = (
@@ -676,11 +1096,13 @@ class RemoteFrameProcessor:
                 )
 
         lidar_observation = self.lidar.read()
-        requested = self.direction_planner.plan(
+        requested = self._stereo_direction_guidance(frame, control_track, paired_track)
+        if requested is None:
+            requested = self.direction_planner.plan(
             bbox=target_bbox,
             frame_width=frame.shape[1],
             frame_height=frame.shape[0],
-        )
+            )
         if self.grounding_worker.busy:
             requested = MotionGuidance("STOP", 0.0, 0.0, "Qwen grounding is in progress")
 
@@ -794,8 +1216,11 @@ class RemoteFrameProcessor:
             },
             "robot_task": self.latest_robot_task,
             "robot_command": self.latest_robot_command,
+            "grounded_tracks": list(self.latest_grounded_tracks),
             "target_queue": _queue_payload(self.target_queue, self.active_queue_index),
             "boundary_mode": self.contour_refiner.mode,
             "emergency_stop": self.emergency_stop,
         }
+        if paired_track is not None:
+            payload["paired_track"] = paired_track
         return payload, overlay

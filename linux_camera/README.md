@@ -179,3 +179,29 @@ python scripts/run_mjpeg_camera_client.py --server ws://192.168.55.33:8000/camer
 ```
 
 这个脚本不支持 `--remote-width 320` 这种 OpenCV 缩放，因为它不解码图像；需要摄像头实际支持的 MJPG 分辨率，例如 `640x480`、`800x600`、`1280x720`。如果 MJPEG 直传能达到 25~30FPS，再把 `--robot-mode none` 换成 `dry-run` 或 `esp32`。
+# 双摄像头左右拼接模式
+
+当前小车使用同一高度、水平左右放置的双摄像头时，不单独做深度估计。树莓派端把左摄像头和右摄像头并行读取，然后拼成一张 side-by-side 图上传给 3090：左半边固定代表小车左摄像头，右半边固定代表小车右摄像头。
+
+推荐先让每个摄像头独立保持约 15FPS，上传拼接图也使用 15FPS：
+
+```bash
+cd ~/dachuang/linux_camera
+source .venv/bin/activate
+python scripts/run_camera_client.py \
+  --server ws://192.168.55.33:8000/camera_ws \
+  --left-camera 0 \
+  --right-camera 2 \
+  --swap-cameras \
+  --baseline-mm 120 \
+  --backend v4l2 \
+  --width 640 --height 480 --fps 30 \
+  --fourcc MJPG \
+  --remote-fps 15 \
+  --remote-width 960 \
+  --jpeg-quality 45 \
+  --no-overlay \
+  --robot-mode none
+```
+
+日志里会显示 `left_fps` 和 `right_fps`。两者都接近 15 时，说明左右摄像头采集达标。如果画面左右对应反了，加 `--swap-cameras`；如果已经正确，就去掉这个参数。确认画面、追踪和小车指令稳定后，再把 `--robot-mode none` 换成 `dry-run` 或 `esp32`。

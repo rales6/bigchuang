@@ -24,7 +24,7 @@ class Qwen3VLTargetGrounder:
         model_path: str,
         device: str = "cpu",
         local_files_only: bool = True,
-        max_new_tokens: int = 64,
+        max_new_tokens: int = 128,
         max_time_seconds: float = 90.0,
         min_visual_tokens: int = 64,
         max_visual_tokens: int = 256,
@@ -124,12 +124,21 @@ Ignore requested motion such as follow, approach, orbit, or stop; only locate th
 If multiple similar objects exist, use attributes and spatial relations such as left/right,
 color, size, and nearby objects to select the intended instance.
 
+The CURRENT scene may be a side-by-side stereo image from a robot:
+left half = robot left camera, right half = robot right camera.
+If the target is visible in both halves, return one real bbox for each half.
+If the target is visible in only one half, return only that side as found=true and the other side as found=false.
+Do not invent or mirror a bbox in the other half.
+For stereo output, coordinates are still relative to the full side-by-side image, not to each half.
+Therefore a right-half bbox should normally have x values greater than 500 in the 0-1000 grid.
+
 If the instruction asks for a number of objects, for example "two bottles" or "两个水瓶",
 locate up to that many concrete instances and return them from left to right.
 
 Return only one compact JSON object with one of these schemas:
 {{"found":true,"bbox_2d":[x1,y1,x2,y2],"coordinate_system":"relative_1000","target_name":"short name","confidence":0.0}}
 {{"found":true,"coordinate_system":"relative_1000","targets":[{{"target_name":"short name 1","bbox_2d":[x1,y1,x2,y2],"confidence":0.0}},{{"target_name":"short name 2","bbox_2d":[x1,y1,x2,y2],"confidence":0.0}}]}}
+{{"found":true,"coordinate_system":"relative_1000","left":{{"found":true,"target_name":"short name","bbox_2d":[x1,y1,x2,y2],"confidence":0.0}},"right":{{"found":false,"target_name":"short name","bbox_2d":[],"confidence":0.0}}}}
 Coordinates must use a 0-1000 grid relative to the CURRENT scene, origin at top-left.
 Before answering, verify bbox_2d has four numbers and x2>x1, y2>y1.
 Do not refuse just because the target is not graspable. Approximate a visible box if needed.

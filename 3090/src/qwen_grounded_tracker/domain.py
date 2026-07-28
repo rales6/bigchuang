@@ -75,6 +75,7 @@ class GroundedCandidate:
     target_name: str
     bbox: BBox
     confidence: float = 0.0
+    camera_view: str = ""
 
 
 @dataclass

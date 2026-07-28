@@ -42,6 +42,15 @@ prediction:
   max_velocity_px_per_second: 900
   max_size_change_px_per_second: 500
 
+stereo_pair:
+  match_threshold: 0.42
+  fallback_shift_ratio: 0.08
+  tracked_weight: 1.0
+  matched_weight: 0.75
+  estimated_weight: 0.30
+  left_center_bias: 0.06
+  right_center_bias: -0.06
+
 obstacles:
   enabled: true
   model_path: "models/yolo/yolo11n-seg.pt"
