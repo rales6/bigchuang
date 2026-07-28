@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import copy
 import json
 import math
 import socket
@@ -424,6 +425,11 @@ class _LiveMapStore:
                 self._png = bytes(png)
                 self._map_version += 1
 
+    def publish_png(self, png):
+        with self._lock:
+            self._png = bytes(png)
+            self._map_version += 1
+
     def status(self):
         with self._lock:
             result = dict(self._status)
@@ -458,6 +464,10 @@ class RealtimeMapServer:
         self._store = _LiveMapStore()
         self._httpd = None
         self._thread = None
+        self._render_thread = None
+        self._render_condition = threading.Condition()
+        self._render_job = None
+        self._render_stopping = False
 
     @property
     def port(self):
@@ -556,22 +566,25 @@ class RealtimeMapServer:
             daemon=True,
         )
         self._thread.start()
+        self._render_stopping = False
+        self._render_thread = threading.Thread(
+            target=self._render_loop,
+            name="realtime-map-render",
+            daemon=True,
+        )
+        self._render_thread.start()
         return self.network_url
 
     def publish(self, slam, status, force=False):
-        """Update metrics immediately and render a throttled map snapshot."""
+        """Publish metrics now and queue PNG work outside the control loop."""
         now = time.monotonic()
         should_render = (
             force
             or self._store.png() is None
             or now - self._last_render_s >= self._minimum_render_interval_s
         )
-        if not should_render:
-            self._store.publish(status)
-            return False
-
         grid = slam.grid
-        probabilities = grid.probabilities()
+        occupied_threshold = math.log(0.65 / 0.35)
         map_status = {
             "map": {
                 "width_cells": int(grid.width),
@@ -581,15 +594,58 @@ class RealtimeMapServer:
                 "origin_y_m": float(grid.origin_y_m),
                 "observed_cells": int(np.count_nonzero(grid.observed)),
                 "occupied_cells": int(np.count_nonzero(
-                    grid.observed & (probabilities >= 0.65)
+                    grid.observed
+                    & (grid.log_odds >= occupied_threshold)
                 )),
                 "trajectory_samples": len(slam.trajectory),
             }
         }
-        png = encode_trajectory_png(grid, tuple(slam.trajectory))
-        self._store.publish({**status, **map_status}, png=png)
+        self._store.publish({**status, **map_status})
+        if not should_render:
+            return False
+
+        # Copy only the mutable arrays used by rendering. The copy is quick
+        # and keeps the worker isolated while SLAM continues expanding and
+        # updating the live grid in the control thread.
+        grid_snapshot = copy.copy(grid)
+        grid_snapshot.log_odds = grid.log_odds.copy()
+        grid_snapshot.observed = grid.observed.copy()
+        grid_snapshot._significant_obstacles = (
+            grid._significant_obstacles.copy()
+        )
+        trajectory_snapshot = tuple(slam.trajectory)
+        with self._render_condition:
+            # Keep only the newest pending frame. A slow Raspberry Pi should
+            # drop stale dashboard frames, never queue seconds of old work.
+            self._render_job = (
+                grid_snapshot,
+                trajectory_snapshot,
+            )
+            self._render_condition.notify()
         self._last_render_s = now
         return True
+
+    def _render_loop(self):
+        while True:
+            with self._render_condition:
+                while (
+                    self._render_job is None
+                    and not self._render_stopping
+                ):
+                    self._render_condition.wait()
+                if (
+                    self._render_job is None
+                    and self._render_stopping
+                ):
+                    return
+                grid, trajectory = self._render_job
+                self._render_job = None
+            try:
+                png = encode_trajectory_png(grid, trajectory)
+                self._store.publish_png(png)
+            except Exception:
+                # Dashboard rendering must never stop localization or motion.
+                continue
 
     def stop(self):
         if self._httpd is None:
@@ -598,8 +654,14 @@ class RealtimeMapServer:
         self._httpd.server_close()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
+        with self._render_condition:
+            self._render_stopping = True
+            self._render_condition.notify_all()
+        if self._render_thread is not None:
+            self._render_thread.join(timeout=2.0)
         self._httpd = None
         self._thread = None
+        self._render_thread = None
 
 
 def _preferred_local_ip():

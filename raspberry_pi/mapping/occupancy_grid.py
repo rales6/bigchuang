@@ -1,6 +1,5 @@
 """二维对数概率占据栅格及 ROS 兼容 PGM/YAML 导出。"""
 
-from collections import deque
 from pathlib import Path
 import math
 
@@ -17,6 +16,7 @@ class OccupancyGrid:
         origin_y_m=None,
         free_log_odds=-0.38,
         occupied_log_odds=0.45,
+        occupied_inflation_cells=0,
         ray_block_log_odds=0.75,
         ray_block_inflation_cells=1,
         contradiction_clear_hits=10,
@@ -39,6 +39,9 @@ class OccupancyGrid:
         )
         self.free_log_odds = float(free_log_odds)
         self.occupied_log_odds = float(occupied_log_odds)
+        self.occupied_inflation_cells = max(
+            0, int(occupied_inflation_cells)
+        )
         self.ray_block_log_odds = float(ray_block_log_odds)
         self.ray_block_inflation_cells = max(
             0, int(ray_block_inflation_cells)
@@ -104,6 +107,8 @@ class OccupancyGrid:
         hit_points_m,
         clear_points_m=None,
         refresh_filter=True,
+        free_evidence_scale=1.0,
+        occupied_evidence_scale=1.0,
     ):
         """将一圈雷达射线融合进栅格；超出地图的射线会被安全裁掉。"""
         self._advance_contradiction_epoch()
@@ -164,8 +169,15 @@ class OccupancyGrid:
                     free_columns.append(column)
                     free_rows.append(row)
             if endpoint_inside and not blocked:
-                occupied_columns.append(end[0])
-                occupied_rows.append(end[1])
+                radius = self.occupied_inflation_cells
+                for row in range(end[1] - radius, end[1] + radius + 1):
+                    for column in range(
+                        end[0] - radius,
+                        end[0] + radius + 1,
+                    ):
+                        if self.in_bounds(column, row):
+                            occupied_columns.append(column)
+                            occupied_rows.append(row)
 
         if clear_points_m is not None:
             clear_cells = self.world_to_grid(clear_points_m)
@@ -186,13 +198,21 @@ class OccupancyGrid:
                     free_rows.append(row)
 
         if free_columns:
-            np.add.at(self.log_odds, (free_rows, free_columns), self.free_log_odds)
+            np.add.at(
+                self.log_odds,
+                (free_rows, free_columns),
+                self.free_log_odds * max(
+                    0.0, float(free_evidence_scale)
+                ),
+            )
             self.observed[free_rows, free_columns] = True
         if occupied_columns:
             np.add.at(
                 self.log_odds,
                 (occupied_rows, occupied_columns),
-                self.occupied_log_odds,
+                self.occupied_log_odds * max(
+                    0.0, float(occupied_evidence_scale)
+                ),
             )
             self.observed[occupied_rows, occupied_columns] = True
             self._contradiction_counts[
@@ -472,43 +492,11 @@ class OccupancyGrid:
             occupied,
             self.observed & (probabilities < 0.35),
         )
-        enclosed_unknown = self._enclosed_unknown_mask(occupied)
-        self.render_filled_enclosed_cells = int(np.count_nonzero(
-            enclosed_unknown
-        ))
-        occupied = occupied | enclosed_unknown
+        # Unknown space remains unknown. Geometry inferred only from a closed
+        # outline is not a lidar observation and must not become an obstacle.
+        self.render_filled_enclosed_cells = 0
         image[occupied] = 0
         return image
-
-    def _enclosed_unknown_mask(self, occupied):
-        """Fill only unknown cells sealed by black boundaries for rendering."""
-        passable = ~occupied
-        outside = np.zeros_like(passable)
-        queue = deque()
-        for column in range(self.width):
-            for row in (0, self.height - 1):
-                if passable[row, column] and not outside[row, column]:
-                    outside[row, column] = True
-                    queue.append((row, column))
-        for row in range(self.height):
-            for column in (0, self.width - 1):
-                if passable[row, column] and not outside[row, column]:
-                    outside[row, column] = True
-                    queue.append((row, column))
-        while queue:
-            row, column = queue.popleft()
-            for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                next_row = row + dy
-                next_column = column + dx
-                if (
-                    0 <= next_row < self.height
-                    and 0 <= next_column < self.width
-                    and passable[next_row, next_column]
-                    and not outside[next_row, next_column]
-                ):
-                    outside[next_row, next_column] = True
-                    queue.append((next_row, next_column))
-        return ~self.observed & passable & ~outside
 
     def _bridge_short_wall_gaps(self, occupied, strong_free):
         """Bridge short, supported horizontal, vertical, and diagonal gaps.
