@@ -45,25 +45,25 @@ def build_argument_parser():
     parser.add_argument(
         "--ble-connect-timeout",
         type=float,
-        default=12.0,
+        default=6.0,
         help="BLE scan and connection timeout in seconds",
     )
     parser.add_argument(
         "--ble-operation-timeout",
         type=float,
-        default=1.5,
+        default=0.8,
         help="maximum time for one BLE GATT write in seconds",
     )
     parser.add_argument(
         "--link-request-timeout",
         type=float,
-        default=0.80,
+        default=0.40,
         help="response timeout for one protocol request in seconds",
     )
     parser.add_argument(
         "--link-request-retries",
         type=int,
-        default=3,
+        default=1,
         help="number of protocol retries after a timeout",
     )
     parser.add_argument("--esp-port", default="/dev/serial0")
@@ -162,12 +162,12 @@ def build_argument_parser():
     parser.add_argument(
         "--manhattan",
         action="store_true",
-        help="opt in to rectangular-room wall-axis yaw correction",
+        help="deprecated compatibility flag; wall-axis correction is on by default",
     )
     parser.add_argument(
         "--no-manhattan",
         action="store_true",
-        help="deprecated compatibility flag; wall-axis correction is off by default",
+        help="disable rectangular-room wall-axis yaw correction",
     )
     parser.add_argument(
         "--min-obstacle-area",
@@ -281,25 +281,25 @@ def build_argument_parser():
     parser.add_argument(
         "--command-ttl-ms",
         type=int,
-        default=450,
+        default=700,
         help="雷达停止更新后 ESP32 自动停车的最长命令有效期",
     )
     parser.add_argument(
         "--command-min-interval-ms",
         type=int,
-        default=300,
+        default=450,
         help="相同方向运动命令的最短发送间隔，降低BLE拥塞",
     )
     parser.add_argument(
         "--link-reconnect-attempts",
         type=int,
-        default=3,
+        default=5,
         help="运动命令超时后的链路重连次数",
     )
     parser.add_argument(
         "--link-reconnect-delay",
         type=float,
-        default=1.0,
+        default=0.25,
         help="每次重连前等待秒数",
     )
     parser.add_argument(
@@ -412,6 +412,13 @@ class MotionCommandScheduler:
         )
         self.last_sent_s = (
             time.monotonic() if now_s is None else float(now_s)
+        )
+
+    def is_identical_refresh(self, command, ttl_ms):
+        return self.last_command == (
+            int(command.linear_mm_s),
+            int(command.angular_mrad_s),
+            int(ttl_ms),
         )
 
     def reset(self):
@@ -645,9 +652,7 @@ def run(
             map_max_linear_speed_m_s=args.map_max_speed,
             map_max_angular_speed_rad_s=args.map_max_turn_rate,
             lidar_turn_max_translation_m=args.turn_max_translation,
-            manhattan_enabled=(
-                args.manhattan and not args.no_manhattan
-            ),
+            manhattan_enabled=not args.no_manhattan,
             min_obstacle_area_m2=args.min_obstacle_area,
         ),
         lidar_config,
@@ -916,7 +921,10 @@ def run(
                     and relocalization_count < 3
                     and (
                         slam.relocalize(raw_scan)
-                        or slam.reseed(raw_scan)
+                        or slam.reseed(
+                            raw_scan,
+                            require_motion_recovery=True,
+                        )
                     )
                 ):
                     relocalization_count += 1
@@ -980,11 +988,29 @@ def run(
             command_sent = False
             if command_scheduler.should_send(command, command_ttl_ms):
                 try:
-                    client.set_twist(
-                        command.linear_mm_s,
-                        command.angular_mrad_s,
-                        ttl_ms=command_ttl_ms,
+                    refresh_twist = getattr(
+                        client,
+                        "refresh_twist",
+                        None,
                     )
+                    if (
+                        refresh_twist is not None
+                        and command_scheduler.is_identical_refresh(
+                            command,
+                            command_ttl_ms,
+                        )
+                    ):
+                        refresh_twist(
+                            command.linear_mm_s,
+                            command.angular_mrad_s,
+                            ttl_ms=command_ttl_ms,
+                        )
+                    else:
+                        client.set_twist(
+                            command.linear_mm_s,
+                            command.angular_mrad_s,
+                            ttl_ms=command_ttl_ms,
+                        )
                     command_scheduler.mark_sent(
                         command, command_ttl_ms
                     )
@@ -1001,7 +1027,9 @@ def run(
                         reason=str(exc),
                     )
                     motion_started = False
-                    speed_controller.stopped()
+                    stronger_restart = (
+                        speed_controller.note_link_interruption()
+                    )
                     command_scheduler.reset()
                     if client_factory is None:
                         raise RuntimeError(
@@ -1043,7 +1071,8 @@ def run(
                     rejected_count = 0
                     relocalization_count = 0
                     print(
-                        "重连停车稳定完成，{}；随后 {} 帧只定位、不写地图。"
+                        "重连停车稳定完成，{}；随后 {} 帧只定位、不写地图；"
+                        "{}。"
                         .format(
                             (
                                 "全局重定位成功"
@@ -1051,6 +1080,13 @@ def run(
                                 else "局部参考恢复"
                             ),
                             args.reconnect_map_hold_scans,
+                            (
+                                "下次直行采用增强起步补偿 {} mm/s".format(
+                                    speed_controller.linear_adjustment_mm_s
+                                )
+                                if stronger_restart
+                                else "未中断直行，不额外提高线速度"
+                            ),
                         )
                     )
                     continue
@@ -1109,6 +1145,18 @@ def run(
             ):
                 slam.save(args.output, rebuild=False)
             if command.finished:
+                slam.rebuild_map()
+                if explorer.resume_after_map_rebuild(
+                    slam.grid,
+                    update.pose,
+                ):
+                    print(
+                        "\nFinal keyframe rebuild exposed a reachable "
+                        "unknown region; exploration resumed."
+                    )
+                    command_scheduler.reset()
+                    speed_controller.stopped()
+                    continue
                 print("\n没有可达的未知区域，探索完成。")
                 break
     finally:

@@ -13,7 +13,9 @@ class AdaptiveSpeedConfig:
     initial_turn_limit_mrad_s: int = 2200
     turn_adjust_step_mrad_s: int = 100
     linear_adjust_step_mm_s: int = 40
+    maximum_linear_stall_step_multiplier: int = 3
     maximum_linear_boost_mm_s: int = 160
+    reconnect_linear_boost_floor_mm_s: int = 120
     maximum_linear_reduction_mm_s: int = 80
     minimum_applied_linear_speed_mm_s: int = 220
     maximum_steering_correction_mrad_s: int = 700
@@ -64,6 +66,7 @@ class AdaptiveSpeedController:
         self.last_command = None
         self.last_requested_command = None
         self._stalled_frames = 0
+        self._linear_stall_events = 0
 
     def observe(self, update):
         """使用上一条实际命令产生的运动结果调节下一条命令。"""
@@ -182,6 +185,7 @@ class AdaptiveSpeedController:
             self._observe_stall(turning=False)
         else:
             self._stalled_frames = 0
+            self._linear_stall_events = 0
 
     def apply(self, command):
         """应用学习到的死区补偿和当前安全上限。"""
@@ -194,6 +198,13 @@ class AdaptiveSpeedController:
                 if command.state == "turn_escape"
                 else self.linear_adjustment_mm_s
             )
+            if angular != 0 and command.state != "advancing":
+                # The explorer has already checked the swept envelope for
+                # this exact short-arc speed. Increasing it changes the turn
+                # radius and can drive a corner of the vehicle into the very
+                # obstacle the arc was meant to avoid. A learned reduction is
+                # still allowed; a boost is not.
+                adjustment = min(0, adjustment)
             magnitude = min(
                 self.maximum_linear_speed_mm_s,
                 max(
@@ -242,26 +253,61 @@ class AdaptiveSpeedController:
         return int(normal_ttl_ms)
 
     def stopped(self):
-        was_moving_linear = (
-            self.last_command is not None
-            and self.last_command.linear_mm_s != 0
-        )
+        """Record a stop without erasing learned starting torque.
+
+        Planned stationary mapping and BLE reconnects are not evidence that
+        the learned boost was excessive. Actual excessive motion is handled
+        by ``observe`` and ``_decrease`` before this method is called.
+        """
         self.last_command = MotionCommand(0, 0, "stopped", "safety stop")
         self.last_requested_command = self.last_command
         self._stalled_frames = 0
-        # 定位失败导致的停车说明当前补偿可能偏激，先安全回退一级。
-        if was_moving_linear:
-            self.linear_adjustment_mm_s = max(
-                -self.config.maximum_linear_reduction_mm_s,
-                self.linear_adjustment_mm_s
-                - self.config.linear_adjust_step_mm_s,
-            )
+
+    def note_link_interruption(self):
+        """Prepare a stronger restart after BLE interrupted linear motion.
+
+        A disconnect does not prove that the chassis is physically stalled,
+        but it does cut the usable acceleration window short.  Keep the
+        learned correction and raise it to a bounded restart floor so the
+        first command after reconnect can cross the static-friction dead
+        zone instead of repeating the same weak ramp.
+        """
+        previous = self.last_command
+        if previous is None or previous.linear_mm_s == 0:
+            self.stopped()
+            return False
+        reconnect_floor = min(
+            self.config.maximum_linear_boost_mm_s,
+            self.config.reconnect_linear_boost_floor_mm_s
+            + max(0, self._linear_stall_events - 1)
+            * self.config.linear_adjust_step_mm_s,
+        )
+        self.linear_adjustment_mm_s = max(
+            self.linear_adjustment_mm_s,
+            reconnect_floor,
+        )
+        # A subsequent confirmed stall should use the fastest one-frame
+        # increase path rather than waiting through the initial three frames.
+        self._linear_stall_events = max(
+            self._linear_stall_events,
+            2,
+        )
+        self.stopped()
+        return True
 
     def _observe_stall(self, turning):
         self._stalled_frames += 1
+        required_frames = self.config.stalled_frames_before_increase
+        if not turning:
+            # React sooner after each confirmed failure so even a short BLE
+            # healthy window can reach the learned starting torque.
+            required_frames = max(
+                1,
+                required_frames - self._linear_stall_events,
+            )
         if (
             self._stalled_frames
-            < self.config.stalled_frames_before_increase
+            < required_frames
         ):
             return
         if turning:
@@ -281,11 +327,16 @@ class AdaptiveSpeedController:
                 + self.config.turn_ttl_adjust_step_ms,
             )
         else:
+            multiplier = min(
+                self.config.maximum_linear_stall_step_multiplier,
+                self._linear_stall_events + 1,
+            )
             self.linear_adjustment_mm_s = min(
                 self.config.maximum_linear_boost_mm_s,
                 self.linear_adjustment_mm_s
-                + self.config.linear_adjust_step_mm_s,
+                + self.config.linear_adjust_step_mm_s * multiplier,
             )
+            self._linear_stall_events += 1
         self._stalled_frames = 0
 
     def _decrease(self, turning, moving_linear):
@@ -314,4 +365,5 @@ class AdaptiveSpeedController:
                 self.linear_adjustment_mm_s
                 - self.config.linear_adjust_step_mm_s,
             )
+            self._linear_stall_events = 0
         self._stalled_frames = 0

@@ -343,6 +343,7 @@ class SimulatedLidarDriver:
                 np.asarray(scan["angles_rad"], dtype=np.float64),
                 np.asarray(scan["distances_m"], dtype=np.float64),
                 float(scan["timestamp_s"]),
+                ground_truth_pose=self.last_ground_truth_pose,
             )
 
     def close(self) -> None:

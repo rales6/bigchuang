@@ -20,6 +20,10 @@ const armCanvas = $("#armCanvas");
 const armCtx = armCanvas.getContext("2d");
 
 const sim = {
+  sessionId: (
+    globalThis.crypto?.randomUUID?.()
+    || `sim-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  ),
   task: null,
   workflow: "task",
   room: { width: 8, height: 5 },
@@ -49,7 +53,9 @@ const sim = {
   path: [],
   pathIndex: 0,
   travelled: 0,
-  lidar: { fovDeg: 180, range: 6 },
+  // Localization consumes a complete revolution. Autonomous mapping applies
+  // its front-sector filter only when writing occupancy cells.
+  lidar: { fovDeg: 360, range: 6 },
   physics: {
     trackWidth: 0.32,
     leftScale: 0.985,
@@ -248,7 +254,10 @@ async function publishLidar(scan) {
     await fetch("/api/lidar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(scan),
+      body: JSON.stringify({
+        ...scan,
+        simulator_session_id: sim.sessionId,
+      }),
     });
   } catch {
     // 页面自身仍可继续显示；Python 雷达适配器会等待下一帧。
@@ -258,7 +267,10 @@ async function publishLidar(scan) {
 }
 
 function performScan(now) {
-  if (!sim.running || now - sim.lastMapAt < 100) return;
+  // A physical lidar keeps scanning while the chassis is stopped. Publishing
+  // only after motion created a startup deadlock: SLAM waited for its first
+  // scan while the simulator waited for the first drive command.
+  if (now - sim.lastMapAt < 100) return;
   sim.lastMapAt = now;
   const rayCount = Math.round(sim.lidar.fovDeg * 0.8);
   const halfFov = (sim.lidar.fovDeg * Math.PI / 180) / 2;
@@ -543,6 +555,9 @@ function setGoal(x, y) {
 }
 
 function setTwist(linearMmS, angularMradS, ttlMs = 600) {
+  // External mapping scripts do not click through the page workflow first.
+  // Treat their first chassis command as selecting the mapping task.
+  if (!sim.task) setTask("mapping", false);
   if (sim.workflow !== "execute" && !beginExecution(false)) return;
   sim.path = [];
   sim.goal = null;
@@ -866,6 +881,7 @@ async function reportState() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        simulator_session_id: sim.sessionId,
         online: true,
         mode: sim.running ? "running" : "editing",
         pose: { x_m: sim.car.x, y_m: sim.car.y, yaw_rad: sim.car.yaw },
@@ -2052,12 +2068,23 @@ function toast(message) {
   toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 2200);
 }
 
-resetMap();
-syncCarConfig();
-writePhysicsInputs();
-setWorkflow("task");
-updateItemInspector();
-addLog("仿真器就绪，等待指令");
-setInterval(pollCommands, 160);
-pollCommands();
-requestAnimationFrame(animationLoop);
+async function startSimulatorPage() {
+  await fetch("/api/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ simulator_session_id: sim.sessionId }),
+  });
+  resetMap();
+  syncCarConfig();
+  writePhysicsInputs();
+  setWorkflow("task");
+  updateItemInspector();
+  addLog("仿真器就绪，等待指令");
+  setInterval(pollCommands, 160);
+  pollCommands();
+  requestAnimationFrame(animationLoop);
+}
+
+startSimulatorPage().catch((error) => {
+  addLog(`Simulator session startup failed: ${error}`, true);
+});
