@@ -34,8 +34,11 @@ class ExplorationConfig:
     min_frontier_cluster_cells: int = 4
     min_frontier_distance_m: float = 0.35
     completion_confirmations: int = 12
-    completion_spin_rad: float = math.radians(60.0)
+    # A partial turn is not enough with a front-only mapping FOV.  Completion
+    # is accepted only after a full stationary observation sweep.
+    completion_spin_rad: float = math.tau
     min_completion_travel_m: float = 3.0
+    completion_min_new_area_m2: float = 0.02
     free_probability: float = 0.45
     occupied_probability: float = 0.65
     recovery_open_margin_m: float = 0.25
@@ -67,12 +70,41 @@ class ExplorationConfig:
     prefer_distant_frontiers: bool = True
     frontier_information_radius_m: float = 0.60
     frontier_information_weight: float = 1.8
+    frontier_distance_weight: float = 0.35
+    frontier_heading_weight: float = 0.12
     # Among frontiers whose direct distances are nearly tied, prefer the one
     # already closer to the vehicle heading. This prevents left/right target
     # flips while retaining the request to explore distant boundaries first.
     frontier_distance_slack_m: float = 0.35
     frontier_blacklist_radius_m: float = 0.45
     frontier_blacklist_updates: int = 160
+    # Secondary viewpoints reveal unknown pockets hidden behind obstacles.
+    # Unlike an ordinary frontier, the target may be separated from unknown
+    # cells by the robot-clearance band, but an occupied cell must not lie on
+    # the viewing ray.
+    occluded_unknown_radius_m: float = 2.5
+    occluded_unknown_rays: int = 48
+    occluded_unknown_min_rays: int = 2
+    observation_candidate_spacing_m: float = 0.15
+    # Compact occupied components are inspected from their still-unobserved
+    # sides before ordinary room frontiers are selected.  This makes the car
+    # circle furniture instead of accepting a single visible face as a
+    # complete obstacle.
+    obstacle_inspection_enabled: bool = True
+    obstacle_inspection_min_cells: int = 6
+    obstacle_inspection_max_span_m: float = 2.4
+    obstacle_inspection_min_observed_area_m2: float = 3.0
+    obstacle_inspection_sector_count: int = 12
+    obstacle_inspection_shadow_depth_m: float = 0.75
+    obstacle_inspection_min_shadow_cells: int = 3
+    obstacle_inspection_standoff_min_m: float = 0.50
+    obstacle_inspection_standoff_max_m: float = 1.35
+    obstacle_inspection_distance_weight: float = 0.08
+    obstacle_inspection_heading_tolerance_deg: float = 12.0
+    # The autonomous mapping loop separately enforces the configured
+    # settle/fusion scans after the arrival turn.  Two zero commands cover the
+    # small-motion case without duplicating that longer stationary gate.
+    obstacle_inspection_hold_updates: int = 2
     path_segment_max_m: float = 0.45
     wall_escape_backoff_m: float = 0.18
     wall_escape_reverse_speed_mm_s: int = 450
@@ -104,6 +136,7 @@ class FrontierExplorer:
         self._no_frontier_count = 0
         self._last_rescan_yaw = None
         self._rescan_accumulated = 0.0
+        self._completion_observed_anchor = None
         self._previous_pose_xy = None
         self._travelled_m = 0.0
         self._turn_anchor_xy = None
@@ -121,6 +154,8 @@ class FrontierExplorer:
         self._progress_escape_updates_left = 0
         self._active_frontier_target = None
         self._frontier_blacklist = []
+        self._inspection_look_at = None
+        self._inspection_hold_count = 0
         self._pose_history = deque(maxlen=80)
         self._wall_escape_phase = None
         self._wall_escape_direction = 1
@@ -152,11 +187,13 @@ class FrontierExplorer:
             self._coverage_history.append(
                 int(np.count_nonzero(grid.observed))
             )
-            progress_command = self._progress_escape_command(
-                pose,
-                scan,
-                grid,
-            )
+            progress_command = None
+            if not self._inspection_arrival_reached(pose):
+                progress_command = self._progress_escape_command(
+                    pose,
+                    scan,
+                    grid,
+                )
             if progress_command is not None:
                 return progress_command
 
@@ -200,29 +237,52 @@ class FrontierExplorer:
             self._reset_progress_tracking()
             self._reset_turn_tracking()
 
+        inspection_command = self._inspection_observation_command(
+            pose,
+            scan,
+            grid,
+        )
+        if inspection_command is not None:
+            return inspection_command
+
         # Depth-first-style commitment: do not periodically replace a valid
         # path merely because a newer/nearer frontier appeared elsewhere.
         should_replan = not self._path
         if should_replan:
             self._expire_frontier_blacklist()
-            new_path = find_frontier_path(
-                grid,
-                pose,
-                self.config,
-                excluded_targets=self._frontier_blacklist,
-            )
+            new_path = self._find_exploration_path(grid, pose)
             new_target = new_path[-1] if new_path else None
             if self._frontier_target_changed(new_target):
                 self._reset_progress_tracking()
             self._path = new_path
             self._active_frontier_target = new_target
             if not self._path:
+                observed_cells = int(np.count_nonzero(grid.observed))
+                if self._completion_observed_anchor is None:
+                    self._completion_observed_anchor = observed_cells
+                minimum_new_cells = max(
+                    1,
+                    int(math.ceil(
+                        self.config.completion_min_new_area_m2
+                        / (grid.resolution_m * grid.resolution_m)
+                    )),
+                )
+                if (
+                    observed_cells - self._completion_observed_anchor
+                    >= minimum_new_cells
+                ):
+                    self._reset_completion_search()
+                    self._completion_observed_anchor = observed_cells
                 self._no_frontier_count += 1
                 if self._last_rescan_yaw is not None:
                     self._rescan_accumulated += abs(normalize_angle(
                         pose.yaw_rad - self._last_rescan_yaw
                     ))
                 self._last_rescan_yaw = pose.yaw_rad
+                unresolved_obstacle = has_unresolved_obstacle_shadows(
+                    grid,
+                    self.config,
+                )
                 finished = (
                     self._no_frontier_count
                     >= self.config.completion_confirmations
@@ -230,11 +290,26 @@ class FrontierExplorer:
                     >= self.config.completion_spin_rad
                     and self._travelled_m
                     >= self.config.min_completion_travel_m
+                    and not unresolved_obstacle
                 )
                 if finished:
                     self.state = "complete"
                 if not finished:
-                    return self._recovery_command(scan, pose, grid)
+                    if (
+                        self._travelled_m
+                        < self.config.min_completion_travel_m
+                    ):
+                        return self._recovery_command(scan, pose, grid)
+                    return self._turn_command(
+                        self.config.minimum_turn_speed_mrad_s,
+                        "completion_scan",
+                        "full rescan before accepting exploration completion",
+                        pose,
+                        scan,
+                        grid,
+                        enforce_turn_limit=False,
+                        allow_arc=False,
+                    )
                 return MotionCommand(
                     0,
                     0,
@@ -242,9 +317,7 @@ class FrontierExplorer:
                     "no reachable frontier",
                     finished=finished,
                 )
-            self._no_frontier_count = 0
-            self._last_rescan_yaw = None
-            self._rescan_accumulated = 0.0
+            self._reset_completion_search()
 
         target = self._select_waypoint(pose)
         if target is None:
@@ -658,12 +731,147 @@ class FrontierExplorer:
             self._active_frontier_target[1],
             expires_at,
         ))
+        self._inspection_look_at = None
+        self._inspection_hold_count = 0
 
     def _expire_frontier_blacklist(self):
         self._frontier_blacklist = [
             item for item in self._frontier_blacklist
             if item[2] > self._updates
         ]
+
+    def _find_exploration_path(self, grid, pose):
+        """Find a real exploration opportunity before considering completion."""
+        path, look_at = find_obstacle_inspection_path(
+            grid,
+            pose,
+            self.config,
+            excluded_targets=self._frontier_blacklist,
+            return_look_at=True,
+        )
+        self._inspection_look_at = look_at
+        self._inspection_hold_count = 0
+        if not path:
+            path = find_frontier_path(
+                grid,
+                pose,
+                self.config,
+                excluded_targets=self._frontier_blacklist,
+            )
+        if not path:
+            path = find_observation_path(
+                grid,
+                pose,
+                self.config,
+                excluded_targets=self._frontier_blacklist,
+            )
+        if path:
+            return path
+
+        # A temporary progress blacklist is only a target-selection hint.  It
+        # must never be interpreted as proof that exploration is complete.
+        path, look_at = find_obstacle_inspection_path(
+            grid,
+            pose,
+            self.config,
+            return_look_at=True,
+        )
+        self._inspection_look_at = look_at
+        self._inspection_hold_count = 0
+        if not path:
+            path = find_frontier_path(grid, pose, self.config)
+        if not path:
+            path = find_observation_path(grid, pose, self.config)
+        if path:
+            self._frontier_blacklist.clear()
+        return path
+
+    def _inspection_arrival_reached(self, pose):
+        if self._inspection_look_at is None:
+            return False
+        if not self._path:
+            return True
+        target = self._path[-1]
+        return math.hypot(
+            target[0] - pose.x_m,
+            target[1] - pose.y_m,
+        ) <= self.config.waypoint_tolerance_m
+
+    def _inspection_observation_command(self, pose, scan, grid):
+        """Face the selected object and hold still for a fused map frame."""
+        if not self._inspection_arrival_reached(pose):
+            return None
+        self._path = []
+        target_x, target_y = self._inspection_look_at
+        heading_error = normalize_angle(
+            math.atan2(target_y - pose.y_m, target_x - pose.x_m)
+            - pose.yaw_rad
+        )
+        tolerance = math.radians(
+            self.config.obstacle_inspection_heading_tolerance_deg
+        )
+        if abs(heading_error) > tolerance:
+            self._inspection_hold_count = 0
+            magnitude = int(max(
+                self.config.minimum_turn_speed_mrad_s,
+                min(
+                    self.config.turn_speed_mrad_s,
+                    abs(heading_error)
+                    * self.config.turn_proportional_gain,
+                ),
+            ))
+            angular = magnitude if heading_error > 0 else -magnitude
+            return self._turn_command(
+                angular,
+                "obstacle_inspection_turn",
+                "facing the obstacle before recording its hidden side",
+                pose,
+                scan,
+                grid,
+                self._inspection_look_at,
+                allow_arc=False,
+            )
+        self._reset_turn_tracking()
+        self._inspection_hold_count += 1
+        if self._inspection_hold_count <= max(
+            1, self.config.obstacle_inspection_hold_updates
+        ):
+            return MotionCommand(
+                0,
+                0,
+                "obstacle_inspection_observe",
+                "holding still for a fused scan of the obstacle side",
+                self._inspection_look_at,
+            )
+        self._inspection_look_at = None
+        self._inspection_hold_count = 0
+        self._reset_progress_tracking()
+        return MotionCommand(
+            0,
+            0,
+            "exploring",
+            "obstacle side recorded; selecting the next hidden side",
+        )
+
+    def resume_after_map_rebuild(self, grid, pose):
+        """Cancel completion if the canonical rebuilt map exposes a target."""
+        self._expire_frontier_blacklist()
+        path = self._find_exploration_path(grid, pose)
+        if not path:
+            return False
+        self.state = "exploring"
+        self._path = path
+        self._active_frontier_target = path[-1]
+        self._reset_completion_search()
+        self._reset_progress_tracking()
+        self._reset_turn_tracking()
+        return True
+
+    def _reset_completion_search(self):
+        self._no_frontier_count = 0
+        self._last_rescan_yaw = None
+        self._rescan_accumulated = 0.0
+        self._completion_observed_anchor = None
 
     def _recovery_command(self, scan, pose, grid):
         """没有可达前沿时，沿当前开阔方向短程探测，避免一直原地打转。"""
@@ -705,10 +913,12 @@ class FrontierExplorer:
         scan,
         grid,
         target=None,
+        enforce_turn_limit=True,
+        allow_arc=True,
     ):
         turn_limit_reached = (
             False
-            if self._rotation_blocked_updates
+            if self._rotation_blocked_updates or not enforce_turn_limit
             else self._observe_turn_progress(pose)
         )
         if turn_limit_reached:
@@ -753,7 +963,8 @@ class FrontierExplorer:
             )
         )
         arc_is_safe = (
-            front
+            allow_arc
+            and front
             >= self.config.stop_distance_m
             + self.config.arc_front_margin_m
             and not arc_scan_blocked
@@ -1140,26 +1351,26 @@ def find_frontier_path(
             straight_distance_m,
             distance_steps,
             heading_error,
-            -information_score,
+            information_score,
             cell,
         ))
     if not candidates:
         return []
 
     if cfg.prefer_distant_frontiers:
-        farthest_distance = max(item[0] for item in candidates)
-        nearly_farthest = [
-            item for item in candidates
-            if item[0]
-            >= farthest_distance - cfg.frontier_distance_slack_m
-        ]
-        selected = min(
-            nearly_farthest,
+        # Prefer the boundary that will reveal the most unknown space. Direct
+        # distance remains a useful translation reward, but must not keep the
+        # car chasing a remote wall while large obstacle shadows remain.
+        selected = max(
+            candidates,
             key=lambda item: (
-                item[2],
+                item[3]
+                + cfg.frontier_distance_weight * item[0]
+                - cfg.frontier_heading_weight * item[2],
                 item[3],
-                -item[0],
-                item[1],
+                item[0],
+                -item[2],
+                -item[1],
             ),
         )
     else:
@@ -1171,7 +1382,7 @@ def find_frontier_path(
         _straight_distance,
         _distance,
         _heading_error,
-        _negative_information,
+        _information,
         (target_row, target_col),
     ) = selected
     cells = []
@@ -1191,6 +1402,593 @@ def find_frontier_path(
             int(math.floor(
                 cfg.path_segment_max_m / grid.resolution_m
             )),
+        ),
+    )[1:]
+    return [
+        (
+            grid.origin_x_m + (col + 0.5) * grid.resolution_m,
+            grid.origin_y_m + (row + 0.5) * grid.resolution_m,
+        )
+        for col, row in cells
+    ]
+
+
+def find_observation_path(
+    grid,
+    pose,
+    config=None,
+    excluded_targets=None,
+):
+    """Reach a viewpoint from which an obstacle-shadowed unknown area is visible.
+
+    Ordinary frontiers require unknown space to touch a clearance-safe cell.
+    That misses narrow shadows behind furniture because obstacle inflation
+    separates those two masks.  This fallback raycasts from reachable cells
+    and only accepts unknown space that is not hidden behind an occupied cell.
+    """
+    cfg = config or ExplorationConfig()
+    probabilities = grid.probabilities()
+    occupied = grid.significant_obstacles(cfg.occupied_probability)
+    free = grid.observed & (probabilities <= cfg.free_probability)
+    footprint_radius = (
+        math.hypot(cfg.robot_length_m / 2.0, cfg.robot_width_m / 2.0)
+        + cfg.safety_margin_m
+    )
+    clearance_cells = int(math.ceil(
+        max(cfg.robot_clearance_m, footprint_radius)
+        / grid.resolution_m
+    ))
+    traversable = free & ~_inflate(occupied, clearance_cells)
+    start = grid.world_to_grid(
+        np.asarray(((pose.x_m, pose.y_m),))
+    )[0]
+    start_col, start_row = int(start[0]), int(start[1])
+    if not grid.in_bounds(start_col, start_row):
+        return []
+    traversable[start_row, start_col] = True
+    distances, parents = _reachable_bfs(
+        traversable, start_col, start_row
+    )
+    unknown = ~grid.observed
+    if not np.any(unknown):
+        return []
+
+    minimum_steps = int(math.ceil(
+        cfg.min_frontier_distance_m / grid.resolution_m
+    ))
+    radius_cells = max(
+        1,
+        int(math.ceil(
+            cfg.occluded_unknown_radius_m / grid.resolution_m
+        )),
+    )
+    spacing_cells = max(
+        1,
+        int(round(
+            cfg.observation_candidate_spacing_m / grid.resolution_m
+        )),
+    )
+    ray_count = max(8, int(cfg.occluded_unknown_rays))
+    ray_directions = tuple(
+        (
+            math.cos(math.tau * index / ray_count),
+            math.sin(math.tau * index / ray_count),
+        )
+        for index in range(ray_count)
+    )
+    candidates = []
+    for row, col in np.argwhere(distances >= minimum_steps):
+        row = int(row)
+        col = int(col)
+        if (
+            (row - start_row) % spacing_cells
+            or (col - start_col) % spacing_cells
+        ):
+            continue
+        target_xy = (
+            grid.origin_x_m + (col + 0.5) * grid.resolution_m,
+            grid.origin_y_m + (row + 0.5) * grid.resolution_m,
+        )
+        if _target_is_excluded(
+            target_xy,
+            excluded_targets,
+            cfg.frontier_blacklist_radius_m,
+        ):
+            continue
+        visible_rays = _visible_unknown_rays(
+            row,
+            col,
+            unknown,
+            occupied,
+            radius_cells,
+            ray_directions,
+        )
+        if visible_rays < cfg.occluded_unknown_min_rays:
+            continue
+        straight_distance_m = math.hypot(
+            target_xy[0] - pose.x_m,
+            target_xy[1] - pose.y_m,
+        )
+        heading_error = abs(normalize_angle(
+            math.atan2(
+                target_xy[1] - pose.y_m,
+                target_xy[0] - pose.x_m,
+            ) - pose.yaw_rad
+        ))
+        candidates.append((
+            visible_rays,
+            straight_distance_m,
+            -heading_error,
+            row,
+            col,
+        ))
+    if not candidates:
+        return []
+    _gain, _distance, _heading, target_row, target_col = max(candidates)
+    return _world_path_from_parents(
+        grid,
+        traversable,
+        parents,
+        start_col,
+        start_row,
+        target_col,
+        target_row,
+        cfg.path_segment_max_m,
+    )
+
+
+def find_obstacle_inspection_path(
+    grid,
+    pose,
+    config=None,
+    excluded_targets=None,
+    return_look_at=False,
+):
+    """Plan to a safe viewpoint on an unobserved side of a compact obstacle.
+
+    A normal frontier describes the edge of all known free space, so it cannot
+    tell whether a gray pocket belongs to the room boundary or sits behind a
+    piece of furniture.  Here each compact occupied component is treated as a
+    provisional object.  Angular sectors with unknown cells beyond the
+    component are incomplete, and reachable free cells in those same sectors
+    become inspection viewpoints.  As new scans reveal the back and side
+    faces, their sector scores disappear naturally; no simulator geometry or
+    ground-truth pose is used.
+    """
+    cfg = config or ExplorationConfig()
+
+    def result(path, look_at=None):
+        return (path, look_at) if return_look_at else path
+
+    if not cfg.obstacle_inspection_enabled:
+        return result([])
+    observed_area_m2 = (
+        np.count_nonzero(grid.observed)
+        * grid.resolution_m
+        * grid.resolution_m
+    )
+    if observed_area_m2 < cfg.obstacle_inspection_min_observed_area_m2:
+        return result([])
+
+    probabilities = grid.probabilities()
+    occupied = grid.significant_obstacles(cfg.occupied_probability)
+    if not np.any(occupied):
+        return result([])
+    free = grid.observed & (probabilities <= cfg.free_probability)
+    footprint_radius = (
+        math.hypot(cfg.robot_length_m / 2.0, cfg.robot_width_m / 2.0)
+        + cfg.safety_margin_m
+    )
+    clearance_cells = int(math.ceil(
+        max(cfg.robot_clearance_m, footprint_radius)
+        / grid.resolution_m
+    ))
+    traversable = free & ~_inflate(occupied, clearance_cells)
+    start = grid.world_to_grid(
+        np.asarray(((pose.x_m, pose.y_m),))
+    )[0]
+    start_col, start_row = int(start[0]), int(start[1])
+    if not grid.in_bounds(start_col, start_row):
+        return result([])
+    traversable[start_row, start_col] = True
+    distances, parents = _reachable_bfs(
+        traversable, start_col, start_row
+    )
+
+    sector_count = max(8, int(cfg.obstacle_inspection_sector_count))
+    shadow_depth_cells = max(
+        1,
+        int(math.ceil(
+            cfg.obstacle_inspection_shadow_depth_m / grid.resolution_m
+        )),
+    )
+    standoff_min_cells = max(
+        clearance_cells + 1,
+        int(math.ceil(
+            cfg.obstacle_inspection_standoff_min_m / grid.resolution_m
+        )),
+    )
+    standoff_max_cells = max(
+        standoff_min_cells,
+        int(math.ceil(
+            cfg.obstacle_inspection_standoff_max_m / grid.resolution_m
+        )),
+    )
+    minimum_steps = max(
+        1,
+        int(math.ceil(
+            cfg.min_frontier_distance_m / grid.resolution_m
+        )),
+    )
+    spacing_cells = max(
+        1,
+        int(round(
+            cfg.observation_candidate_spacing_m / grid.resolution_m
+        )),
+    )
+    unknown = ~grid.observed
+    candidates = []
+
+    for component in _clusters(occupied):
+        if len(component) < cfg.obstacle_inspection_min_cells:
+            continue
+        component_rows = np.asarray(
+            [cell[0] for cell in component], dtype=np.int32
+        )
+        component_cols = np.asarray(
+            [cell[1] for cell in component], dtype=np.int32
+        )
+        span_x_m = (
+            int(component_cols.max()) - int(component_cols.min()) + 1
+        ) * grid.resolution_m
+        span_y_m = (
+            int(component_rows.max()) - int(component_rows.min()) + 1
+        ) * grid.resolution_m
+        if max(span_x_m, span_y_m) > cfg.obstacle_inspection_max_span_m:
+            # The connected room perimeter is a boundary, not furniture to
+            # circumnavigate.  Broken short wall pieces remain harmless: an
+            # exterior viewpoint is not reachable through known free space.
+            continue
+
+        center_row = float(np.mean(component_rows))
+        center_col = float(np.mean(component_cols))
+        radial_extent = np.hypot(
+            component_cols - center_col,
+            component_rows - center_row,
+        )
+        component_radius = max(1.0, float(np.percentile(
+            radial_extent, 90.0
+        )))
+        shadow_scores = _obstacle_shadow_sector_scores(
+            unknown,
+            center_row,
+            center_col,
+            component_radius,
+            shadow_depth_cells,
+            sector_count,
+        )
+        if max(shadow_scores, default=0) < (
+            cfg.obstacle_inspection_min_shadow_cells
+        ):
+            continue
+
+        row_start = max(
+            0, int(math.floor(center_row - standoff_max_cells))
+        )
+        row_end = min(
+            grid.height,
+            int(math.ceil(center_row + standoff_max_cells + 1)),
+        )
+        col_start = max(
+            0, int(math.floor(center_col - standoff_max_cells))
+        )
+        col_end = min(
+            grid.width,
+            int(math.ceil(center_col + standoff_max_cells + 1)),
+        )
+        component_cells = set(component)
+        component_candidates = []
+        for row in range(row_start, row_end, spacing_cells):
+            for col in range(col_start, col_end, spacing_cells):
+                path_steps = int(distances[row, col])
+                if path_steps < minimum_steps:
+                    continue
+                radial_distance = math.hypot(
+                    col - center_col, row - center_row
+                )
+                minimum_radial_distance = max(
+                    standoff_min_cells,
+                    component_radius + clearance_cells + 1,
+                )
+                if not (
+                    minimum_radial_distance
+                    <= radial_distance
+                    <= standoff_max_cells
+                ):
+                    continue
+                target_xy = (
+                    grid.origin_x_m
+                    + (col + 0.5) * grid.resolution_m,
+                    grid.origin_y_m
+                    + (row + 0.5) * grid.resolution_m,
+                )
+                if _target_is_excluded(
+                    target_xy,
+                    excluded_targets,
+                    cfg.frontier_blacklist_radius_m,
+                ):
+                    continue
+                sector = _angular_sector(
+                    row - center_row,
+                    col - center_col,
+                    sector_count,
+                )
+                shadow_score = shadow_scores[sector]
+                if shadow_score < cfg.obstacle_inspection_min_shadow_cells:
+                    continue
+                if not _component_visible_from(
+                    row,
+                    col,
+                    center_row,
+                    center_col,
+                    occupied,
+                    component_cells,
+                ):
+                    continue
+                heading_error = abs(normalize_angle(
+                    math.atan2(
+                        target_xy[1] - pose.y_m,
+                        target_xy[0] - pose.x_m,
+                    ) - pose.yaw_rad
+                ))
+                component_candidates.append((
+                    shadow_score
+                    - cfg.obstacle_inspection_distance_weight
+                    * path_steps
+                    * grid.resolution_m,
+                    shadow_score,
+                    -heading_error,
+                    -path_steps,
+                    row,
+                    col,
+                    center_row,
+                    center_col,
+                ))
+        if component_candidates:
+            # Finish one nearby object before crossing the room to another.
+            # This is the obstacle-level equivalent of the explorer's
+            # committed frontier path and produces an efficient circumnavigation
+            # instead of alternating between unrelated shadows.
+            component_distance_steps = min(
+                -item[3] for item in component_candidates
+            )
+            candidates.extend(
+                (-component_distance_steps, *item)
+                for item in component_candidates
+            )
+
+    if not candidates:
+        return result([])
+    (
+        _component_distance,
+        _score,
+        _shadow,
+        _heading,
+        _distance,
+        target_row,
+        target_col,
+        look_row,
+        look_col,
+    ) = max(candidates)
+    path = _world_path_from_parents(
+        grid,
+        traversable,
+        parents,
+        start_col,
+        start_row,
+        target_col,
+        target_row,
+        cfg.path_segment_max_m,
+    )
+    look_at = (
+        grid.origin_x_m + (look_col + 0.5) * grid.resolution_m,
+        grid.origin_y_m + (look_row + 0.5) * grid.resolution_m,
+    )
+    return result(path, look_at)
+
+
+def has_unresolved_obstacle_shadows(grid, config=None):
+    """Return true while a compact obstacle still has gray space behind it."""
+    cfg = config or ExplorationConfig()
+    if not cfg.obstacle_inspection_enabled:
+        return False
+    observed_area_m2 = (
+        np.count_nonzero(grid.observed)
+        * grid.resolution_m
+        * grid.resolution_m
+    )
+    if observed_area_m2 < cfg.obstacle_inspection_min_observed_area_m2:
+        return False
+    occupied = grid.significant_obstacles(cfg.occupied_probability)
+    if not np.any(occupied):
+        return False
+    unknown = ~grid.observed
+    sector_count = max(8, int(cfg.obstacle_inspection_sector_count))
+    shadow_depth_cells = max(
+        1,
+        int(math.ceil(
+            cfg.obstacle_inspection_shadow_depth_m / grid.resolution_m
+        )),
+    )
+    for component in _clusters(occupied):
+        if len(component) < cfg.obstacle_inspection_min_cells:
+            continue
+        rows = np.asarray(
+            [cell[0] for cell in component], dtype=np.int32
+        )
+        cols = np.asarray(
+            [cell[1] for cell in component], dtype=np.int32
+        )
+        span_m = max(
+            (int(cols.max()) - int(cols.min()) + 1)
+            * grid.resolution_m,
+            (int(rows.max()) - int(rows.min()) + 1)
+            * grid.resolution_m,
+        )
+        if span_m > cfg.obstacle_inspection_max_span_m:
+            continue
+        center_row = float(np.mean(rows))
+        center_col = float(np.mean(cols))
+        radial_extent = np.hypot(
+            cols - center_col,
+            rows - center_row,
+        )
+        component_radius = max(
+            1.0,
+            float(np.percentile(radial_extent, 90.0)),
+        )
+        scores = _obstacle_shadow_sector_scores(
+            unknown,
+            center_row,
+            center_col,
+            component_radius,
+            shadow_depth_cells,
+            sector_count,
+        )
+        if max(scores, default=0) >= (
+            cfg.obstacle_inspection_min_shadow_cells
+        ):
+            return True
+    return False
+
+
+def _obstacle_shadow_sector_scores(
+    unknown,
+    center_row,
+    center_col,
+    component_radius,
+    shadow_depth_cells,
+    sector_count,
+):
+    scores = [0] * sector_count
+    height, width = unknown.shape
+    angle_samples = sector_count * 5
+    start_radius = component_radius + 1.0
+    end_radius = component_radius + shadow_depth_cells
+    for sample in range(angle_samples):
+        angle = math.tau * sample / angle_samples
+        direction_col = math.cos(angle)
+        direction_row = math.sin(angle)
+        sector = _angular_sector(
+            direction_row,
+            direction_col,
+            sector_count,
+        )
+        seen = set()
+        for radius in np.arange(start_radius, end_radius + 0.5, 1.0):
+            col = int(round(center_col + direction_col * radius))
+            row = int(round(center_row + direction_row * radius))
+            if not (0 <= row < height and 0 <= col < width):
+                break
+            if (row, col) in seen:
+                continue
+            seen.add((row, col))
+            if unknown[row, col]:
+                scores[sector] += 1
+    return scores
+
+
+def _angular_sector(delta_row, delta_col, sector_count):
+    angle = math.atan2(delta_row, delta_col) % math.tau
+    return int(
+        math.floor((angle + math.pi / sector_count) / math.tau * sector_count)
+    ) % sector_count
+
+
+def _component_visible_from(
+    row,
+    col,
+    center_row,
+    center_col,
+    occupied,
+    component_cells,
+):
+    target_col = int(round(center_col))
+    target_row = int(round(center_row))
+    for sample_col, sample_row in _grid_line_cells(
+        (col, row),
+        (target_col, target_row),
+    ):
+        if (sample_row, sample_col) == (row, col):
+            continue
+        if not (
+            0 <= sample_row < occupied.shape[0]
+            and 0 <= sample_col < occupied.shape[1]
+        ):
+            return False
+        if not occupied[sample_row, sample_col]:
+            continue
+        return (sample_row, sample_col) in component_cells
+    return False
+
+
+def _visible_unknown_rays(
+    row,
+    col,
+    unknown,
+    occupied,
+    radius_cells,
+    directions,
+):
+    height, width = unknown.shape
+    visible = set()
+    for direction_x, direction_y in directions:
+        last_cell = None
+        for step in range(1, radius_cells + 1):
+            sample_col = int(round(col + direction_x * step))
+            sample_row = int(round(row + direction_y * step))
+            cell = (sample_row, sample_col)
+            if cell == last_cell:
+                continue
+            last_cell = cell
+            if not (
+                0 <= sample_row < height
+                and 0 <= sample_col < width
+            ):
+                break
+            if occupied[sample_row, sample_col]:
+                break
+            if unknown[sample_row, sample_col]:
+                visible.add(cell)
+                break
+    return len(visible)
+
+
+def _world_path_from_parents(
+    grid,
+    traversable,
+    parents,
+    start_col,
+    start_row,
+    target_col,
+    target_row,
+    maximum_segment_m,
+):
+    cells = []
+    row, col = target_row, target_col
+    while (col, row) != (start_col, start_row):
+        cells.append((col, row))
+        parent_row, parent_col = parents[row, col]
+        if parent_row < 0:
+            return []
+        row, col = int(parent_row), int(parent_col)
+    cells.reverse()
+    cells = _simplify_grid_path(
+        [(start_col, start_row)] + cells,
+        traversable,
+        max(
+            1,
+            int(math.floor(maximum_segment_m / grid.resolution_m)),
         ),
     )[1:]
     return [

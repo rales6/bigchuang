@@ -16,8 +16,8 @@ class BleSerialTransport:
         self,
         device_name,
         address=None,
-        connect_timeout_s=8.0,
-        operation_timeout_s=1.5,
+        connect_timeout_s=6.0,
+        operation_timeout_s=0.8,
     ):
         try:
             from bleak import BleakClient, BleakScanner
@@ -144,7 +144,10 @@ class BleSerialTransport:
                 response=False,
             )
             if index + 1 < len(offsets):
-                await asyncio.sleep(0.004)
+                # The balanced four-wheel command spans two ATT packets.
+                # Eight milliseconds stays far below the command interval
+                # while giving the MicroPython IRQ buffer time to drain.
+                await asyncio.sleep(0.008)
 
     def close(self):
         if self._client and self._loop.is_running():

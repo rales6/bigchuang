@@ -140,6 +140,31 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(200, status)
         self.assertEqual(8.0, result["scene"]["room"]["width"])
 
+    def test_z_only_claimed_simulator_can_publish_lidar(self) -> None:
+        owner = "test-owner-session"
+        status, response = self.request(
+            "/api/session",
+            {"simulator_session_id": owner},
+        )
+        self.assertEqual(200, status)
+        self.assertEqual(owner, response["simulator_session_id"])
+
+        scan = {
+            "timestamp_s": 200.0,
+            "angles_rad": [0.0],
+            "distances_m": [1.0],
+            "ground_truth_pose": {
+                "x_m": 0.0,
+                "y_m": 0.0,
+                "yaw_rad": 0.0,
+            },
+        }
+        status, _ = self.request("/api/lidar", scan)
+        self.assertEqual(409, status)
+        scan["simulator_session_id"] = owner
+        status, _ = self.request("/api/lidar", scan)
+        self.assertEqual(202, status)
+
 
 if __name__ == "__main__":
     unittest.main()

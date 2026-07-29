@@ -52,6 +52,7 @@ class SimulationBus:
         self._commands: list[dict] = []
         self._latest_lidar: dict | None = None
         self._scene: dict = {}
+        self._simulator_session_id: str | None = None
         self._state = {
             "online": False,
             "mode": "editing",
@@ -66,6 +67,26 @@ class SimulationBus:
             "last_command_id": 0,
             "updated_at": None,
         }
+
+    def claim_simulator_session(self, payload: object) -> str:
+        if not isinstance(payload, dict):
+            raise ValueError("session payload must be a JSON object")
+        session_id = payload.get("simulator_session_id")
+        if not isinstance(session_id, str) or not 8 <= len(session_id) <= 128:
+            raise ValueError("invalid simulator_session_id")
+        with self._lidar_ready:
+            self._simulator_session_id = session_id
+            self._latest_lidar = None
+            self._lidar_ready.notify_all()
+        return session_id
+
+    def _require_simulator_session(self, payload: dict) -> None:
+        if (
+            self._simulator_session_id is not None
+            and payload.get("simulator_session_id")
+            != self._simulator_session_id
+        ):
+            raise PermissionError("another simulator page owns this session")
 
     def push(self, command: dict) -> dict:
         normalized = validate_command(command)
@@ -88,6 +109,7 @@ class SimulationBus:
         if not isinstance(state, dict):
             raise ValueError("state 必须是 JSON 对象")
         with self._lock:
+            self._require_simulator_session(state)
             allowed = {
                 "online",
                 "mode",
@@ -122,8 +144,9 @@ class SimulationBus:
         return result
 
     def push_lidar(self, scan: dict) -> dict:
-        normalized = validate_lidar_scan(scan)
         with self._lidar_ready:
+            self._require_simulator_session(scan)
+            normalized = validate_lidar_scan(scan)
             item = {
                 **normalized,
                 "sequence": self._next_scan_sequence,
@@ -365,6 +388,10 @@ class SimulationHandler(BaseHTTPRequestHandler):
                 item = BUS.push(payload)
                 self._json({"ok": True, "command": item}, HTTPStatus.ACCEPTED)
                 return
+            if parsed.path == "/api/session":
+                session_id = BUS.claim_simulator_session(payload)
+                self._json({"ok": True, "simulator_session_id": session_id})
+                return
             if parsed.path == "/api/state":
                 state = BUS.update_state(payload)
                 self._json({"ok": True, "state": state})
@@ -381,6 +408,8 @@ class SimulationHandler(BaseHTTPRequestHandler):
                 self._json({"ok": True, "scene": scene})
                 return
             self._json({"ok": False, "error": "接口不存在"}, HTTPStatus.NOT_FOUND)
+        except PermissionError as exc:
+            self._json({"ok": False, "error": str(exc)}, HTTPStatus.CONFLICT)
         except (ValueError, json.JSONDecodeError) as exc:
             self._json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
