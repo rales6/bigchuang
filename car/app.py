@@ -53,21 +53,26 @@ class ExecutorApplication:
         ))
 
     def _create_pi_transport(self):
+        mode = getattr(config, "PI_LINK_MODE", "ble").lower()
+        if mode == "ble":
+            from transport.bluetooth import BLEUARTTransport
+            return BLEUARTTransport(
+                config.PI_BLE_NAME,
+                config.PI_BLE_RX_BUFFER,
+            )
+
         uart = self._create_uart(
             config.PI_UART_ID, config.PI_UART_BAUDRATE,
             config.PI_UART_TX_PIN, config.PI_UART_RX_PIN,
-            config.PI_UART_RX_BUFFER, "usb-serial",
+            config.PI_UART_RX_BUFFER, "pi-uart",
         )
-        if not getattr(config, "PI_BLE_ENABLED", False):
+        if mode == "uart":
             return uart
-        try:
+        if mode == "both":
             from transport.bluetooth import BLEUARTTransport
             ble = BLEUARTTransport(config.PI_BLE_NAME, config.PI_BLE_RX_BUFFER)
             return MultiplexTransport((uart, ble))
-        except Exception as exc:
-            # BLE 不可用不能阻止主 UART 安全链路启动。
-            print("BLE backup unavailable:", exc)
-            return uart
+        raise ValueError("unsupported PI_LINK_MODE: {}".format(mode))
 
     def _create_arm(self):
         if config.ACTUATOR_BACKEND == "legacy_uart_all":
