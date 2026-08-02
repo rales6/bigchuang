@@ -1,21 +1,22 @@
 """ESP32 执行器固件的唯一板级配置入口。"""
 
-# 树莓派专用全双工链路。不要与执行器底板共用 UART。
-PI_UART_ID = 1
+# 树莓派通过 ESP32 Type-C 口的 USB-UART 桥连接 UART0。常见经典 ESP32
+# 开发板的桥接引脚为 TX0=GPIO1、RX0=GPIO3；不要与执行器底板共用。
+PI_UART_ID = 0
 PI_UART_BAUDRATE = 230400
-PI_UART_TX_PIN = 22
-PI_UART_RX_PIN = 21
-PI_UART_RX_BUFFER = 1024
+PI_UART_TX_PIN = 1
+PI_UART_RX_PIN = 3
+PI_UART_RX_BUFFER = 2048
 
 # BLE 仅作为树莓派链路的备用通道。使用 Nordic UART Service (NUS)，因此树莓派
 # 和 ESP32 仍传输完全相同的 Vehicle Link V2 字节帧。
-PI_BLE_ENABLED = True
+PI_BLE_ENABLED = False
 PI_BLE_NAME = "ESP32-Robot-Car"
 PI_BLE_RX_BUFFER = 2048
 PI_UNSOLICITED_STATUS_ENABLED = False
 
 # 当前硬件：四个电机和六个舵机均通过 UART2 连接旧执行器底板。
-FIRMWARE_BUILD = "2026.07.27-uart-ble-v15-stable-link"
+FIRMWARE_BUILD = "2026.08.02-usb-uart-v16-stable-link"
 DRIVE_CALIBRATION_PATH = "drive_calibration.json"
 ACTUATOR_BACKEND = "legacy_uart_all"
 ACTUATOR_UART_ID = 2

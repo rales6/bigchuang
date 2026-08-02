@@ -56,7 +56,7 @@ class ExecutorApplication:
         uart = self._create_uart(
             config.PI_UART_ID, config.PI_UART_BAUDRATE,
             config.PI_UART_TX_PIN, config.PI_UART_RX_PIN,
-            config.PI_UART_RX_BUFFER, "uart",
+            config.PI_UART_RX_BUFFER, "usb-serial",
         )
         if not getattr(config, "PI_BLE_ENABLED", False):
             return uart
@@ -121,7 +121,7 @@ class ExecutorApplication:
             self._last_status_ms = now
 
     def run(self):
-        print("ESP32 executor started: Pi UART/BLE + actuator UART")
+        print("ESP32 executor started: Pi USB serial + actuator UART")
         try:
             while True:
                 self.step()
