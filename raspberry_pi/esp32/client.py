@@ -139,6 +139,30 @@ class Esp32Client:
                 self._switch_to_fallback()
         raise AssertionError("unreachable")
 
+    def send_without_response(self, msg_type, payload=b""):
+        """Send a best-effort frame without waiting for an application ACK.
+
+        This is reserved for refreshing an already acknowledged motion
+        command.  A new speed or direction must still use ``request``.
+        """
+        with self._request_lock:
+            sequence = self._next_sequence()
+            packet = encode_frame(
+                msg_type,
+                sequence,
+                payload,
+                src=ADDR_RASPBERRY_PI,
+                dst=ADDR_ESP32,
+                flags=0,
+            )
+            try:
+                self.serial.write(packet)
+            except Exception as exc:
+                self.last_link_error = exc
+                raise LinkError(
+                    "通信链路无应答写入失败: {}".format(exc)
+                ) from exc
+
     def heartbeat(self):
         return self.request(MSG_HEARTBEAT)
 
@@ -170,6 +194,35 @@ class Esp32Client:
         return self.request(MSG_RESET_DRIVE_CALIBRATION)
 
     def set_twist(self, linear_mm_s, angular_mrad_s, ttl_ms=600):
+        msg_type, payload = self._encode_twist_request(
+            linear_mm_s,
+            angular_mrad_s,
+            ttl_ms,
+        )
+        # A changed motion command remains acknowledged.  Only an identical
+        # periodic refresh is allowed to use the non-blocking path below.
+        frame = self.request(msg_type, payload)
+        with self._state_lock:
+            self._active_drive_request = (msg_type, payload)
+        return frame
+
+    def refresh_twist(self, linear_mm_s, angular_mrad_s, ttl_ms=600):
+        """Refresh an unchanged, previously acknowledged motion command."""
+        msg_type, payload = self._encode_twist_request(
+            linear_mm_s,
+            angular_mrad_s,
+            ttl_ms,
+        )
+        self.send_without_response(msg_type, payload)
+        with self._state_lock:
+            self._active_drive_request = (msg_type, payload)
+
+    def _encode_twist_request(
+        self,
+        linear_mm_s,
+        angular_mrad_s,
+        ttl_ms,
+    ):
         command = (int(linear_mm_s), int(angular_mrad_s), int(ttl_ms))
         gains = tuple(float(value) for value in self.config.wheel_output_gains)
         if gains == (1.0, 1.0, 1.0, 1.0):
@@ -183,11 +236,7 @@ class Esp32Client:
                 command[2],
                 gains,
             )
-        # 先得到 ESP32 确认，再交给后台续期，避免失败命令被持续重发。
-        frame = self.request(msg_type, payload)
-        with self._state_lock:
-            self._active_drive_request = (msg_type, payload)
-        return frame
+        return msg_type, payload
 
     def stop(self):
         with self._state_lock:

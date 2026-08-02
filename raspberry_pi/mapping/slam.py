@@ -62,6 +62,10 @@ class LidarSlam:
         self._match_updates = 0
         self._last_grid_pose = None
         self._last_grid_timestamp_s = None
+        self._stationary_mapping_active = False
+        self._stationary_settle_left = 0
+        self._stationary_mapping_scans = []
+        self._stationary_mapping_poses = []
         self._linear_speed_samples = deque(
             maxlen=max(1, self.mapping_config.map_speed_filter_window)
         )
@@ -81,13 +85,23 @@ class LidarSlam:
         self.map_integrated_count = 0
         self.map_rebuild_count = 0
         self.map_keyframes_replaced = 0
+        self.reseed_motion_recoveries = 0
+        self.stationary_fusion_count = 0
+        self.stationary_fusion_input_points = 0
+        self.stationary_fusion_output_points = 0
         self.map_skip_counts = {}
+        self._ground_truth_origin = None
+        self.pose_diagnostics = []
 
     def _new_grid(self):
         return OccupancyGrid(
             self.mapping_config.width_cells,
             self.mapping_config.height_cells,
             self.mapping_config.resolution_m,
+            occupied_inflation_cells=(
+                self.mapping_config
+                .stationary_map_occupied_inflation_cells
+            ),
             contradiction_clear_hits=(
                 self.mapping_config.map_contradiction_clear_hits
             ),
@@ -106,14 +120,25 @@ class LidarSlam:
             ),
         )
 
-    def process(self, scan, pure_rotation=False, mapping_scan=None):
+    def process(
+        self,
+        scan,
+        pure_rotation=False,
+        mapping_scan=None,
+        stationary_mapping=True,
+    ):
         """Localize with a complete scan and optionally map a restricted scan.
 
         ``scan`` always feeds the adjacent-frame, rolling-submap, and global
         localization references.  ``mapping_scan`` is allowed to contain only
         the trustworthy front sector and is used exclusively for occupancy-grid
-        integration.  Keeping these inputs separate prevents a mapping FOV
+        integration. Keeping these inputs separate prevents a mapping FOV
         limit from throwing away useful localization history.
+
+        ``stationary_mapping`` is controlled by the autonomous observation
+        scheduler. False means localization-only. True starts or continues a
+        settle-and-fuse batch; no individual moving scan is written directly
+        into the occupancy grid.
         """
         # ``pure_rotation`` is kept only for API compatibility. Wheel commands
         # are not odometry; turning is classified below from lidar motion.
@@ -137,13 +162,22 @@ class LidarSlam:
         if self.previous_points is None:
             self.previous_points = points
             self.previous_timestamp_s = scan.timestamp_s
-            map_integrated, map_status = self._integrate(
+            self.trajectory.append((
+                scan.timestamp_s,
+                self.pose.x_m,
+                self.pose.y_m,
+                self.pose.yaw_rad,
+            ))
+            map_integrated, map_status = self._stationary_map_update(
                 mapping_points,
                 scan.timestamp_s,
-                force=True,
+                stationary_mapping,
+                match_rmse_m=0.0,
+                match_inlier_ratio=1.0,
             )
             self._add_to_local_submap(points, self.pose)
             self._add_to_global_map(points, self.pose, force=True)
+            self._record_pose_diagnostic(scan, accepted=True)
             return SlamUpdate(
                 self.pose,
                 True,
@@ -169,7 +203,22 @@ class LidarSlam:
                 points,
                 initial=initial_pose,
             )
-            if self._local_match_is_reliable(local_match):
+            local_correction = initial_pose.inverse().compose(
+                local_match.transform
+            )
+            if (
+                self._local_match_is_reliable(local_match)
+                and math.hypot(
+                    local_correction.x_m,
+                    local_correction.y_m,
+                )
+                <= self.mapping_config.local_submap_max_correction_m
+                and abs(local_correction.yaw_rad)
+                <= math.radians(
+                    self.mapping_config
+                    .local_submap_max_correction_deg
+                )
+            ):
                 match = local_match
                 match_is_global = True
 
@@ -206,10 +255,30 @@ class LidarSlam:
                 match = global_match
                 match_is_global = True
 
-        relative_transform = (
+        raw_relative_transform = (
             self.pose.inverse().compose(match.transform)
             if match_is_global
             else match.transform
+        )
+        lateral_gain = (
+            self.mapping_config.submap_lateral_correction_gain
+            if match_is_global
+            else self.mapping_config.nonholonomic_lateral_gain
+        )
+        lateral_m = raw_relative_transform.y_m * lateral_gain
+        if match_is_global:
+            lateral_limit = max(
+                0.0,
+                self.mapping_config.submap_lateral_correction_max_m,
+            )
+            lateral_m = max(
+                -lateral_limit,
+                min(lateral_limit, lateral_m),
+            )
+        relative_transform = Pose2D(
+            raw_relative_transform.x_m,
+            lateral_m,
+            raw_relative_transform.yaw_rad,
         )
         translation_m = math.hypot(
             relative_transform.x_m,
@@ -262,11 +331,11 @@ class LidarSlam:
         linear_speed_m_s = translation_m / elapsed_s
         angular_speed_rad_s = rotation_rad / elapsed_s
         if accepted:
-            proposed_pose = (
-                match.transform
-                if match_is_global
-                else self.pose.compose(match.transform)
-            )
+            # Apply the scan match as a body-frame differential-drive motion.
+            # Even an absolute local/global match is converted to a relative
+            # correction above so impossible sideways ICP wall sliding cannot
+            # enter the trajectory.
+            proposed_pose = self.pose.compose(relative_transform)
             adjacent_rotation = relative_transform.yaw_rad
             adjacent_reliable = (
                 frame_match.converged
@@ -281,13 +350,44 @@ class LidarSlam:
             )
             if adjacent_reliable:
                 adjacent_rotation = frame_match.transform.yaw_rad
-            self._scan_heading_yaw = normalize_angle(
-                self._scan_heading_yaw + adjacent_rotation
-            )
+            if stationary_mapping and self._last_grid_pose is None:
+                # Before the first map keyframe there is no global geometric
+                # anchor. Keep the user-defined startup direction instead of
+                # accepting a symmetric-room ICP rotation as the origin yaw.
+                fused_heading = self._scan_heading_yaw
+            else:
+                # On later stops the chassis may still coast for a few scans
+                # after zero speed is sent. Continue estimating that real
+                # residual rotation; the stationary stability gate below only
+                # fuses scans after the pose has converged.
+                predicted_heading = normalize_angle(
+                    self._scan_heading_yaw + adjacent_rotation
+                )
+                fused_heading = predicted_heading
+                if match_is_global:
+                    correction = normalize_angle(
+                        proposed_pose.yaw_rad - predicted_heading
+                    )
+                    maximum = math.radians(
+                        self.mapping_config
+                        .heading_submap_max_correction_deg
+                    )
+                    correction = max(
+                        -maximum,
+                        min(
+                            maximum,
+                            correction
+                            * self.mapping_config
+                            .heading_submap_correction_gain,
+                        ),
+                    )
+                    fused_heading = normalize_angle(
+                        predicted_heading + correction
+                    )
             proposed_pose = Pose2D(
                 proposed_pose.x_m,
                 proposed_pose.y_m,
-                self._scan_heading_yaw,
+                fused_heading,
             )
             self.pose = self._regularize_manhattan_yaw(
                 proposed_pose,
@@ -296,6 +396,12 @@ class LidarSlam:
             self._scan_heading_yaw = self.pose.yaw_rad
             self.previous_points = points
             self.previous_timestamp_s = scan.timestamp_s
+            self.trajectory.append((
+                scan.timestamp_s,
+                self.pose.x_m,
+                self.pose.y_m,
+                self.pose.yaw_rad,
+            ))
             self._linear_speed_samples.append(linear_speed_m_s)
             self._angular_speed_samples.append(angular_speed_rad_s)
             filtered_linear_speed = float(np.median(
@@ -306,14 +412,20 @@ class LidarSlam:
             ))
             linear_speed_m_s = filtered_linear_speed
             angular_speed_rad_s = filtered_angular_speed
-            map_integrated, map_status = self._integrate(
+            map_integrated, map_status = self._stationary_map_update(
                 mapping_points,
                 scan.timestamp_s,
-                linear_speed_m_s=filtered_linear_speed,
-                angular_speed_rad_s=filtered_angular_speed,
+                stationary_mapping,
+                match_rmse_m=match.rmse_m,
+                match_inlier_ratio=match.inlier_ratio,
             )
             self._add_to_local_submap(points, self.pose)
             self._add_to_global_map(points, self.pose)
+        elif stationary_mapping:
+            # Never continue a fusion batch across a pose-rejected frame.
+            # The next accepted scan must settle and start a fresh batch.
+            self._reset_stationary_mapping()
+        self._record_pose_diagnostic(scan, accepted=accepted)
         return SlamUpdate(
             self.pose,
             accepted,
@@ -330,15 +442,68 @@ class LidarSlam:
             angular_speed_rad_s,
         )
 
-    def reseed(self, scan):
+    def reseed(self, scan, require_motion_recovery=False):
         """停车后重建相邻帧参考，不改变全局位姿，也不写入地图。"""
         points = self._scan_points(scan)
         if len(points) < self.mapping_config.min_match_points:
             return False
+        # Do not silently discard the motion that happened between the last
+        # accepted frame and this stopped recovery frame. That used to lose
+        # 15--30 degrees on every rejection episode.
+        if self.previous_points is not None:
+            recovery = self.matcher.match(
+                self.previous_points,
+                points,
+                coarse_yaw_range_deg=(
+                    self.mapping_config.reseed_coarse_yaw_range_deg
+                ),
+            )
+            recoverable = (
+                recovery.converged
+                and recovery.rmse_m
+                <= self.mapping_config.max_match_rmse_m
+                and recovery.inlier_ratio
+                >= self.mapping_config.min_match_inlier_ratio
+                and math.hypot(
+                    recovery.transform.x_m,
+                    recovery.transform.y_m,
+                ) <= 0.30
+                and abs(recovery.transform.yaw_rad)
+                <= math.radians(
+                    self.mapping_config.reseed_max_rotation_deg
+                )
+            )
+            if recoverable:
+                relative = Pose2D(
+                    recovery.transform.x_m,
+                    recovery.transform.y_m
+                    * self.mapping_config.nonholonomic_lateral_gain,
+                    recovery.transform.yaw_rad,
+                )
+                recovered_pose = self.pose.compose(relative)
+                self.pose = self._regularize_manhattan_yaw(
+                    recovered_pose,
+                    points,
+                )
+                self._scan_heading_yaw = self.pose.yaw_rad
+                self.trajectory.append((
+                    scan.timestamp_s,
+                    self.pose.x_m,
+                    self.pose.y_m,
+                    self.pose.yaw_rad,
+                ))
+                self.reseed_motion_recoveries += 1
+            elif require_motion_recovery:
+                # Do not throw away the last good reference and claim that a
+                # failed recovery succeeded. Doing so permanently loses all
+                # rotation since that frame and can create a 90-degree map
+                # branch in a rectangular room.
+                return False
         self.previous_points = points
         self.previous_timestamp_s = scan.timestamp_s
         self._local_scans.clear()
         self._local_reference = None
+        self._reset_stationary_mapping()
         self._add_to_local_submap(points, self.pose)
         return True
 
@@ -387,6 +552,7 @@ class LidarSlam:
         self.previous_timestamp_s = scan.timestamp_s
         self._local_scans.clear()
         self._local_reference = None
+        self._reset_stationary_mapping()
         self._add_to_local_submap(points, self.pose)
         self._linear_speed_samples.clear()
         self._angular_speed_samples.clear()
@@ -446,7 +612,69 @@ class LidarSlam:
             writer = csv.writer(stream)
             writer.writerow(("timestamp_s", "x_m", "y_m", "yaw_rad"))
             writer.writerows(self.trajectory)
+        self._save_pose_diagnostics(output_prefix)
         return pgm_path, yaml_path, trajectory_path, png_path
+
+    def _record_pose_diagnostic(self, scan, accepted):
+        """Record simulator truth without feeding it into SLAM decisions."""
+        truth = getattr(scan, "ground_truth_pose", None)
+        if not isinstance(truth, dict):
+            return
+        try:
+            world_truth = Pose2D(
+                float(truth["x_m"]),
+                float(truth["y_m"]),
+                float(truth["yaw_rad"]),
+            )
+        except (KeyError, TypeError, ValueError):
+            return
+        if self._ground_truth_origin is None:
+            self._ground_truth_origin = world_truth
+        local_truth = self._ground_truth_origin.inverse().compose(
+            world_truth
+        )
+        translation_error = math.hypot(
+            self.pose.x_m - local_truth.x_m,
+            self.pose.y_m - local_truth.y_m,
+        )
+        yaw_error = normalize_angle(
+            self.pose.yaw_rad - local_truth.yaw_rad
+        )
+        self.pose_diagnostics.append((
+            float(scan.timestamp_s),
+            float(self.pose.x_m),
+            float(self.pose.y_m),
+            float(self.pose.yaw_rad),
+            float(local_truth.x_m),
+            float(local_truth.y_m),
+            float(local_truth.yaw_rad),
+            float(translation_error),
+            float(yaw_error),
+            int(bool(accepted)),
+        ))
+
+    def _save_pose_diagnostics(self, output_prefix):
+        if not self.pose_diagnostics:
+            return None
+        path = Path(output_prefix).with_name(
+            Path(output_prefix).name + "_pose_diagnostics.csv"
+        )
+        with path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.writer(stream)
+            writer.writerow((
+                "timestamp_s",
+                "estimated_x_m",
+                "estimated_y_m",
+                "estimated_yaw_rad",
+                "truth_x_m",
+                "truth_y_m",
+                "truth_yaw_rad",
+                "translation_error_m",
+                "yaw_error_rad",
+                "accepted",
+            ))
+            writer.writerows(self.pose_diagnostics)
+        return path
 
     def rebuild_map(self):
         """Replay replaceable keyframes into a clean occupancy grid.
@@ -473,6 +701,224 @@ class LidarSlam:
         self.map_rebuild_count += 1
         return True
 
+    def stationary_mapping_due(self):
+        """Return whether a new stopped observation pose is required."""
+        if self._last_grid_pose is None:
+            return True
+        relative = self._last_grid_pose.inverse().compose(self.pose)
+        return (
+            math.hypot(relative.x_m, relative.y_m)
+            >= self.mapping_config.stationary_map_translation_m
+            or abs(relative.yaw_rad)
+            >= math.radians(
+                self.mapping_config.stationary_map_rotation_deg
+            )
+        )
+
+    @property
+    def stationary_mapping_progress(self):
+        required = max(
+            1, int(self.mapping_config.stationary_map_fusion_scans)
+        )
+        return len(self._stationary_mapping_scans), required
+
+    def _reset_stationary_mapping(self):
+        self._stationary_mapping_active = False
+        self._stationary_settle_left = 0
+        self._stationary_mapping_scans = []
+        self._stationary_mapping_poses = []
+
+    def _stationary_map_update(
+        self,
+        local_points,
+        timestamp_s,
+        enabled,
+        match_rmse_m=0.0,
+        match_inlier_ratio=1.0,
+    ):
+        """Collect several stable scans and write one denoised keyframe."""
+        if self._map_hold_frames > 0:
+            self._map_hold_frames -= 1
+            self._reset_stationary_mapping()
+            return self._skip_map("relocalizing")
+        if not enabled:
+            self._reset_stationary_mapping()
+            return self._skip_map("moving_localization_only")
+        if (
+            match_rmse_m
+            > self.mapping_config.stationary_map_max_match_rmse_m
+            or match_inlier_ratio
+            < self.mapping_config
+            .stationary_map_min_match_inlier_ratio
+        ):
+            self._stationary_mapping_scans = []
+            self._stationary_mapping_poses = []
+            self._stationary_settle_left = max(
+                0,
+                int(self.mapping_config.stationary_map_settle_scans),
+            )
+            return self._skip_map("stationary_match_unreliable")
+
+        if not self._stationary_mapping_active:
+            self._stationary_mapping_active = True
+            self._stationary_settle_left = max(
+                0,
+                int(self.mapping_config.stationary_map_settle_scans),
+            )
+            self._stationary_mapping_scans = []
+            self._stationary_mapping_poses = []
+
+        if self._stationary_settle_left > 0:
+            self._stationary_settle_left -= 1
+            return self._skip_map("stationary_settling")
+
+        if self._stationary_mapping_poses:
+            anchor = self._stationary_mapping_poses[0]
+            relative = anchor.inverse().compose(self.pose)
+            unstable = (
+                math.hypot(relative.x_m, relative.y_m)
+                > self.mapping_config.stationary_map_max_pose_translation_m
+                or abs(relative.yaw_rad)
+                > math.radians(
+                    self.mapping_config.stationary_map_max_pose_rotation_deg
+                )
+            )
+            if unstable:
+                self._stationary_mapping_scans = []
+                self._stationary_mapping_poses = []
+                self._stationary_settle_left = max(
+                    0,
+                    int(
+                        self.mapping_config.stationary_map_settle_scans
+                    ),
+                )
+                return self._skip_map("stationary_unstable")
+
+        self._stationary_mapping_scans.append(
+            np.asarray(local_points, dtype=np.float64).copy()
+        )
+        self._stationary_mapping_poses.append(self.pose)
+        required = max(
+            1, int(self.mapping_config.stationary_map_fusion_scans)
+        )
+        if len(self._stationary_mapping_scans) < required:
+            return self._skip_map("stationary_collecting")
+
+        fused_points = self._fuse_stationary_scans(
+            self._stationary_mapping_scans
+        )
+        fused_pose = self._median_stationary_pose(
+            self._stationary_mapping_poses
+        )
+        self.stationary_fusion_input_points += sum(
+            len(points) for points in self._stationary_mapping_scans
+        )
+        self.stationary_fusion_output_points += len(fused_points)
+        self._reset_stationary_mapping()
+        if len(fused_points) < self.mapping_config.min_match_points:
+            return self._skip_map("stationary_fusion_sparse")
+
+        integrated, status = self._integrate(
+            fused_points,
+            timestamp_s,
+            force=True,
+            pose=fused_pose,
+        )
+        if integrated:
+            self.stationary_fusion_count += 1
+            return True, "stationary_fused"
+        return integrated, status
+
+    def _fuse_stationary_scans(self, scans):
+        """Keep angular returns supported by several independent scans."""
+        sensor_offset = np.asarray((
+            self.mapping_config.lidar_offset_x_m,
+            self.mapping_config.lidar_offset_y_m,
+        ), dtype=np.float64)
+        bin_width = math.radians(max(
+            0.1,
+            float(self.mapping_config.stationary_map_angle_bin_deg),
+        ))
+        maximum_range = self.mapping_config.mapping_max_distance_m
+        clear_range = maximum_range + max(
+            0.05,
+            self.mapping_config.stationary_map_range_tolerance_m,
+        )
+        by_bin = {}
+        for frame_index, points in enumerate(scans):
+            relative = np.asarray(points, dtype=np.float64) - sensor_offset
+            ranges = np.linalg.norm(relative, axis=1)
+            angles = np.arctan2(relative[:, 1], relative[:, 0])
+            finite = (
+                np.isfinite(ranges)
+                & np.isfinite(angles)
+                & (ranges > 0.0)
+            )
+            frame_bins = {}
+            for angle, distance in zip(angles[finite], ranges[finite]):
+                bin_index = int(round(float(angle) / bin_width))
+                frame_bins.setdefault(bin_index, []).append(
+                    min(float(distance), clear_range)
+                )
+            for bin_index, values in frame_bins.items():
+                by_bin.setdefault(bin_index, []).append((
+                    frame_index,
+                    float(np.median(values)),
+                ))
+
+        minimum_support = min(
+            len(scans),
+            max(
+                1,
+                int(
+                    self.mapping_config
+                    .stationary_map_min_support_scans
+                ),
+            ),
+        )
+        tolerance = max(
+            0.01,
+            float(
+                self.mapping_config.stationary_map_range_tolerance_m
+            ),
+        )
+        fused = []
+        for bin_index, observations in by_bin.items():
+            distances = np.asarray(
+                [item[1] for item in observations],
+                dtype=np.float64,
+            )
+            median_distance = float(np.median(distances))
+            supported = distances[
+                np.abs(distances - median_distance) <= tolerance
+            ]
+            if len(supported) < minimum_support:
+                continue
+            distance = float(np.median(supported))
+            angle = bin_index * bin_width
+            fused.append(
+                sensor_offset
+                + distance * np.asarray((
+                    math.cos(angle),
+                    math.sin(angle),
+                ))
+            )
+        if not fused:
+            return np.empty((0, 2), dtype=np.float64)
+        return np.asarray(fused, dtype=np.float64)
+
+    @staticmethod
+    def _median_stationary_pose(poses):
+        x_m = float(np.median([pose.x_m for pose in poses]))
+        y_m = float(np.median([pose.y_m for pose in poses]))
+        sine = float(np.median([
+            math.sin(pose.yaw_rad) for pose in poses
+        ]))
+        cosine = float(np.median([
+            math.cos(pose.yaw_rad) for pose in poses
+        ]))
+        return Pose2D(x_m, y_m, math.atan2(sine, cosine))
+
     def _integrate(
         self,
         local_points,
@@ -480,10 +926,9 @@ class LidarSlam:
         linear_speed_m_s=0.0,
         angular_speed_rad_s=0.0,
         force=False,
+        pose=None,
     ):
-        self.trajectory.append(
-            (timestamp_s, self.pose.x_m, self.pose.y_m, self.pose.yaw_rad)
-        )
+        integration_pose = self.pose if pose is None else pose
         if not force:
             if self._map_hold_frames > 0:
                 self._map_hold_frames -= 1
@@ -506,7 +951,9 @@ class LidarSlam:
 
         should_integrate = self._last_grid_pose is None
         if self._last_grid_pose is not None:
-            relative = self._last_grid_pose.inverse().compose(self.pose)
+            relative = self._last_grid_pose.inverse().compose(
+                integration_pose
+            )
             elapsed_s = timestamp_s - self._last_grid_timestamp_s
             should_integrate = (
                 math.hypot(relative.x_m, relative.y_m)
@@ -523,15 +970,21 @@ class LidarSlam:
         self._update_grid_from_local_points(
             self.grid,
             local_points,
-            self.pose,
+            integration_pose,
         )
         self.grid.prune_floating_obstacles()
-        self._store_mapping_keyframe(
+        keyframe_replaced = self._store_mapping_keyframe(
             local_points,
             timestamp_s,
-            self.pose,
+            integration_pose,
         )
-        self._last_grid_pose = self.pose
+        if keyframe_replaced:
+            # The live planner must see exactly the same replaceable-evidence
+            # map that save() will produce. Otherwise stale free rays can make
+            # exploration declare completion and then disappear from the
+            # final PNG, leaving large gray wedges.
+            self.rebuild_map()
+        self._last_grid_pose = integration_pose
         self._last_grid_timestamp_s = timestamp_s
         self.map_integrated_count += 1
         return True, "integrated"
@@ -564,6 +1017,21 @@ class LidarSlam:
         else:
             clear_endpoints = np.empty((0, 2), dtype=np.float64)
         world_points = pose.transform_points(mapping_hits)
+        capped_ranges = np.minimum(ranges, maximum_range)
+        capped_endpoints = (
+            sensor_offset
+            + relative_points
+            * (capped_ranges / np.maximum(ranges, 1e-9))[:, None]
+        )
+        interpolated_clear = self._interpolate_free_endpoints(
+            capped_endpoints,
+            sensor_offset,
+        )
+        if len(interpolated_clear):
+            clear_endpoints = np.vstack((
+                clear_endpoints,
+                interpolated_clear,
+            ))
         clear_world_points = pose.transform_points(clear_endpoints)
         sensor_world = pose.transform_points(sensor_local)[0]
         grid.update(
@@ -571,7 +1039,77 @@ class LidarSlam:
             world_points,
             clear_points_m=clear_world_points,
             refresh_filter=refresh_filter,
+            occupied_evidence_scale=(
+                self.mapping_config
+                .stationary_map_occupied_evidence_scale
+            ),
         )
+
+    def _interpolate_free_endpoints(
+        self,
+        endpoints,
+        sensor_offset,
+    ):
+        """Fill only the proven-free sliver between adjacent lidar beams."""
+        points = np.asarray(endpoints, dtype=np.float64).reshape(-1, 2)
+        sensor = np.asarray(sensor_offset, dtype=np.float64)
+        if len(points) < 2:
+            return np.empty((0, 2), dtype=np.float64)
+        relative = points - sensor
+        ranges = np.linalg.norm(relative, axis=1)
+        angles = np.arctan2(relative[:, 1], relative[:, 0])
+        valid = (
+            np.isfinite(ranges)
+            & np.isfinite(angles)
+            & (ranges > self.grid.resolution_m)
+        )
+        ranges = ranges[valid]
+        angles = angles[valid]
+        if len(ranges) < 2:
+            return np.empty((0, 2), dtype=np.float64)
+        order = np.argsort(angles)
+        ranges = ranges[order]
+        angles = angles[order]
+        maximum_gap = math.radians(
+            self.mapping_config.map_free_fill_max_angle_deg
+        )
+        target_spacing = max(
+            self.grid.resolution_m * 0.5,
+            self.grid.resolution_m
+            * self.mapping_config.map_free_fill_spacing_cells,
+        )
+        endpoint_margin = max(
+            self.grid.resolution_m,
+            self.mapping_config.map_free_fill_endpoint_margin_m,
+        )
+        inserted = []
+        for index in range(len(angles) - 1):
+            gap = float(angles[index + 1] - angles[index])
+            if gap <= 0.0 or gap > maximum_gap:
+                continue
+            clear_range = (
+                min(ranges[index], ranges[index + 1])
+                - endpoint_margin
+            )
+            if clear_range <= self.grid.resolution_m:
+                continue
+            arc_length = clear_range * gap
+            subdivisions = int(math.ceil(
+                arc_length / target_spacing
+            ))
+            for step in range(1, subdivisions):
+                fraction = step / subdivisions
+                angle = angles[index] + gap * fraction
+                inserted.append(
+                    sensor
+                    + clear_range * np.asarray((
+                        math.cos(angle),
+                        math.sin(angle),
+                    ))
+                )
+        if not inserted:
+            return np.empty((0, 2), dtype=np.float64)
+        return np.asarray(inserted, dtype=np.float64)
 
     def _store_mapping_keyframe(self, local_points, timestamp_s, pose):
         radius_m = self.mapping_config.map_revisit_replace_radius_m
@@ -613,6 +1151,7 @@ class LidarSlam:
             retained = retained[-maximum:]
         self._mapping_keyframes = retained
         self.map_keyframes_replaced += replaced
+        return bool(replaced)
 
     def _skip_map(self, reason):
         self.map_skip_counts[reason] = (
@@ -624,15 +1163,23 @@ class LidarSlam:
         parts = ["integrated={}".format(self.map_integrated_count)]
         for reason in (
             "relocalizing",
-            "stationary",
-            "too_fast",
-            "turning_too_fast",
-            "keyframe_wait",
+            "moving_localization_only",
+            "stationary_settling",
+            "stationary_collecting",
+            "stationary_unstable",
+            "stationary_fusion_sparse",
         ):
             parts.append("{}={}".format(
                 reason,
                 self.map_skip_counts.get(reason, 0),
             ))
+        parts.append("stationary_fusions={}".format(
+            self.stationary_fusion_count
+        ))
+        parts.append("fusion_points={}/{}".format(
+            self.stationary_fusion_output_points,
+            self.stationary_fusion_input_points,
+        ))
         parts.append("small_components_hidden={}".format(
             self.grid.filtered_small_components
         ))
@@ -660,6 +1207,24 @@ class LidarSlam:
         parts.append("map_keyframes_replaced={}".format(
             self.map_keyframes_replaced
         ))
+        parts.append("reseed_motion_recoveries={}".format(
+            self.reseed_motion_recoveries
+        ))
+        if self.pose_diagnostics:
+            translation = np.asarray(
+                [row[7] for row in self.pose_diagnostics],
+                dtype=np.float64,
+            )
+            yaw = np.asarray(
+                [row[8] for row in self.pose_diagnostics],
+                dtype=np.float64,
+            )
+            parts.append("sim_pose_rmse={:.3f}m".format(
+                float(np.sqrt(np.mean(translation ** 2)))
+            ))
+            parts.append("sim_yaw_rmse={:.1f}deg".format(
+                math.degrees(float(np.sqrt(np.mean(yaw ** 2))))
+            ))
         return " ".join(parts)
 
     def _local_match_is_reliable(self, match):

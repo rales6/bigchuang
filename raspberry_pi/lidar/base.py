@@ -1,7 +1,7 @@
 """与具体雷达品牌无关的数据结构。"""
 
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Protocol
+from typing import Any, Iterable, Iterator, Protocol
 
 import numpy as np
 
@@ -13,6 +13,9 @@ class LaserScan:
     angles_rad: np.ndarray
     distances_m: np.ndarray
     timestamp_s: float
+    # The web simulator may attach pose truth for offline evaluation. Mapping
+    # and localization never consume this field.
+    ground_truth_pose: Any = None
 
     def __post_init__(self):
         if self.angles_rad.ndim != 1 or self.distances_m.ndim != 1:
@@ -46,4 +49,3 @@ def make_scan(samples: Iterable[tuple], timestamp_s: float) -> LaserScan:
     if values.size == 0:
         values = np.empty((0, 2), dtype=np.float64)
     return LaserScan(values[:, 0], values[:, 1], timestamp_s)
-

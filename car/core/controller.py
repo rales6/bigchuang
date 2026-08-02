@@ -580,6 +580,19 @@ class PiCommandService:
             payload = encode_error(frame.msg_type, ERR_INTERNAL)
             flags = FLAG_RESPONSE | FLAG_ERROR
 
+        # 完全相同的运动命令可作为无应答 TTL 保活帧。首次下发、变速和
+        # 变向仍由树莓派使用 ACK_REQUIRED；这里只省掉高频重复 ACK，
+        # 防止 BLE 通知拥塞拖垮控制循环。无应答帧若损坏/丢失，旧命令
+        # 仍会按 TTL 自动停车。
+        if (
+            not frame.ack_required
+            and frame.msg_type in (
+                MSG_SET_TWIST,
+                MSG_SET_BALANCED_TWIST,
+            )
+        ):
+            return
+
         # 构造响应帧并发送
         raw = encode_frame(
             response_type, frame.seq, payload,

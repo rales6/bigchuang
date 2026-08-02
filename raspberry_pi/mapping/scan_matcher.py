@@ -34,7 +34,13 @@ class IcpScanMatcher:
         self.coarse_yaw_step_deg = float(coarse_yaw_step_deg)
         self.trim_fraction = float(trim_fraction)
 
-    def match(self, reference_points, current_points, initial=None):
+    def match(
+        self,
+        reference_points,
+        current_points,
+        initial=None,
+        coarse_yaw_range_deg=None,
+    ):
         reference = np.asarray(reference_points, dtype=np.float64)
         current = np.asarray(current_points, dtype=np.float64)
         if len(reference) < self.min_points or len(current) < self.min_points:
@@ -44,11 +50,19 @@ class IcpScanMatcher:
         if initial is not None:
             estimate = initial
         elif self._identity_is_reliable(reference, current):
-            # 小运动时从零初值直接精修，避免最近邻粗搜索在平滑墙面上
-            # 因采样密度偏差选择一个反方向的小角度。
+            # Only skip coarse yaw search when virtually the complete scan
+            # overlaps with very small residual error. The former 75% gate
+            # also classified an 8-degree rectangular-room turn as identity.
             estimate = Pose2D()
         else:
-            estimate = self._coarse_initial(reference, current)
+            # A rotated long wall can still have excellent nearest-neighbour
+            # overlap at identity. Starting ICP at zero then converges to an
+            # along-wall local minimum and accumulates yaw bias every frame.
+            estimate = self._coarse_initial(
+                reference,
+                current,
+                yaw_range_deg=coarse_yaw_range_deg,
+            )
         previous_rmse = math.inf
         converged = False
 
@@ -97,13 +111,22 @@ class IcpScanMatcher:
             self._ratio(count, reference, current),
         )
 
-    def _coarse_initial(self, reference, current):
+    def _coarse_initial(
+        self,
+        reference,
+        current,
+        yaw_range_deg=None,
+    ):
         """在较大角度范围内寻找 ICP 初值，避免高速旋转落入错误局部极值。"""
         reference_coarse = self._uniform_sample(reference, 140)
         current_coarse = self._uniform_sample(current, 140)
         coarse_limit = max(self.max_correspondence_m * 2.0, 0.70)
         coarse_limit_squared = coarse_limit ** 2
-        yaw_range = abs(self.coarse_yaw_range_deg)
+        yaw_range = abs(
+            self.coarse_yaw_range_deg
+            if yaw_range_deg is None
+            else float(yaw_range_deg)
+        )
         yaw_step = max(0.5, abs(self.coarse_yaw_step_deg))
         candidates = np.arange(
             -yaw_range,
@@ -112,7 +135,7 @@ class IcpScanMatcher:
         )
 
         best_estimate = Pose2D()
-        best_score = (-1, -math.inf, -math.inf)
+        best_score = (-math.inf, -math.inf, -math.inf)
         for yaw_deg in candidates:
             estimate = Pose2D(yaw_rad=math.radians(float(yaw_deg)))
             transformed = estimate.transform_points(current_coarse)
@@ -130,8 +153,15 @@ class IcpScanMatcher:
                 coarse_rmse = float(np.sqrt(np.mean(values[:keep])))
             else:
                 coarse_rmse = math.inf
-            # 优先重叠点数量，其次误差；完全接近时偏向较小旋转。
-            score = (count, -coarse_rmse, -abs(yaw_deg))
+            overlap = count / max(1, len(current_coarse))
+            # One extra loose correspondence must not outweigh a much cleaner
+            # angular alignment. Penalize missing overlap without making it
+            # the lexicographically dominant objective.
+            robust_cost = (
+                coarse_rmse
+                + (1.0 - overlap) * coarse_limit * 0.35
+            )
+            score = (-robust_cost, overlap, -abs(yaw_deg))
             if score > best_score:
                 best_score = score
                 best_estimate = estimate
@@ -147,7 +177,13 @@ class IcpScanMatcher:
         values = np.sort(squared[accepted])
         keep = max(self.min_points, int(math.ceil(len(values) * 0.70)))
         rmse = float(np.sqrt(np.mean(values[:keep])))
-        return ratio >= 0.75 and rmse <= self.max_correspondence_m * 0.45
+        return (
+            ratio >= 0.98
+            and rmse <= min(
+                0.055,
+                self.max_correspondence_m * 0.18,
+            )
+        )
 
     def _evaluate(self, reference, current, estimate):
         transformed = estimate.transform_points(current)
