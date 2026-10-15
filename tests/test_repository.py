@@ -24,9 +24,16 @@ class RepositoryTests(unittest.TestCase):
         self.assertIsInstance(semantic, dict)
         self.assertTrue(semantic.get("objects") or semantic.get("entities"))
 
-    def test_history_is_preserved_without_committing_changes(self):
+    def test_original_history_is_preserved(self):
         result = subprocess.run(["git", "cat-file", "-t", "0fea8a9"], cwd=ROOT, capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout.strip(), "commit")
+
+    def test_runtime_experience_and_weights_are_external_to_git_source(self):
+        from tools.maintenance.check_repository import external_runtime_artifact
+        self.assertTrue(external_runtime_artifact('robot/grasp_range_integration/phase1/runtime/motion_experience.json'))
+        self.assertTrue(external_runtime_artifact('robot/grasp_range_integration/phase1/runtime/startup_drive_experience.json'))
+        self.assertTrue(external_runtime_artifact('services/grasp/gpu/arm_teach_artifacts/model.pt'))
+        self.assertFalse(external_runtime_artifact('robot/grasp_range_integration/phase1/adaptive_turn.py'))
 
     def test_android_source_not_build_artifacts(self):
         self.assertTrue((ROOT/"apps/android/app/src/main/AndroidManifest.xml").is_file())

@@ -32,6 +32,7 @@ cd robot-car
 | Qwen/YOLO 模型 | 3090现有模型目录；以各组件配置为准，不能仅凭旧README猜路径 |
 | DeepSeek 现用配置 | Pi `car1.0/secrets/deepseek_vision.json`；由团队填自己的密钥，不提交Git |
 | 网页浏览器密钥 | 原成员在每个浏览器清除；新成员自行配置。位置见上述DeepSeek交接清单 |
+| 实车自适应速度经验 | Pi 发布目录 `grasp_range_integration/phase1/runtime/{motion_experience,startup_drive_experience}.json`；保留设备现有文件，不用Git覆盖。新机器需要继承时单独迁移，不强行加入源码仓库 |
 
 原设备IP、用户名及绝对路径只代表交接时布局，换网络或电脑后要更新。没有随仓库分发密码。旧密钥由原成员自行清空并在供应商账户撤销，本次上传不会代为清空/撤销。
 

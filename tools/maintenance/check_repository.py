@@ -19,6 +19,11 @@ REQUIRED = ["apps/android/gradlew", "apps/android/app/build.gradle.kts", "firmwa
             "maps/current/ble_scene_17.pgm", "maps/current/semantic_runtime.json"]
 
 
+def external_runtime_artifact(name):
+    path = Path(name)
+    return 'runtime' in path.parts or path.suffix in {'.pt', '.pth', '.onnx', '.safetensors'}
+
+
 def source_files():
     for path in ROOT.rglob("*"):
         if path.is_file() and not any(part in IGNORED or part.startswith(".venv-") for part in path.relative_to(ROOT).parts):
@@ -55,8 +60,11 @@ def verify():
     manifest_path = ROOT/"docs/maintenance/source_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     for name, meta in manifest["files"].items():
-        if Path(name).suffix in {".pt", ".pth", ".onnx", ".safetensors"}:
-            continue  # Weight hashes are recorded; Git intentionally excludes weights.
+        if external_runtime_artifact(name):
+            # Provenance includes the device's learned state and model file;
+            # neither is a source dependency in a clean Git clone. Do not
+            # force-add runtime state just to satisfy a provenance manifest.
+            continue
         if not (ROOT/name).is_file():
             errors.append("Synced source disappeared: " + name)
     active = ROOT/"maps/current"
