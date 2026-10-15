@@ -1,0 +1,1719 @@
+{
+  "schema": "semantic_object_memory.v1",
+  "map_id": "ble_scene_17",
+  "map_sha256": "7bb607da3abdf9d92de73d76d94950dd13b1ddb07c8838b199b05a455a7d00be",
+  "map_yaml_sha256": "da84028ca8e1dedc8b87b7ed108e3293d93667f2df5d0f42f82df213d6da9327",
+  "fusion_method": "reviewed_layout_geometry_with_multi_batch_annotation_evidence",
+  "geometry_policy": "reviewed_layout_positions_are_immutable_during_annotation_fusion",
+  "objects": [
+    {
+      "id": "layout_c631488036ad",
+      "name": "中央桌子",
+      "aliases": [
+        "table",
+        "中央桌子",
+        "桌子"
+      ],
+      "category": "table",
+      "type": "table",
+      "label": "table",
+      "map_xy": [
+        0.033831908831908564,
+        -1.3643162393162402
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.6989809446620305,
+      "mobility": "unknown",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s02_d060.jpg",
+            "bbox": [
+              280,
+              0,
+              850,
+              210
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s02_d060.jpg",
+            "bbox": [
+              280,
+              0,
+              850,
+              210
+            ],
+            "bearing_deg": -45.64883899458931,
+            "method": "furniture_component",
+            "x_m": -0.5909371378878892,
+            "y_m": -1.0508868226025887,
+            "column": 188,
+            "row": 221,
+            "distance_m": 1.6249999999999996,
+            "sample_bearing_deg": -45.64883899458931
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 4,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_fdf066196a63",
+      "name": "桌边椅子（右侧）",
+      "aliases": [
+        "table",
+        "桌子",
+        "桌边椅子（右侧）"
+      ],
+      "category": "table",
+      "type": "table",
+      "label": "table",
+      "map_xy": [
+        0.43056314644852156,
+        -0.5134034785610105
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.65,
+      "mobility": "unknown",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s03_d000.jpg",
+            "bbox": [
+              880,
+              0,
+              1000,
+              260
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s03_d000.jpg",
+            "bbox": [
+              880,
+              0,
+              1000,
+              260
+            ],
+            "bearing_deg": -85.97498848500602,
+            "method": "first_surface",
+            "x_m": 0.43056314644852156,
+            "y_m": -0.5134034785610105,
+            "column": 208,
+            "row": 210,
+            "distance_m": 0.8499999999999999
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 4,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_1ed6f7e964f2",
+      "name": "桌边椅子（下侧）",
+      "aliases": [
+        "table",
+        "桌子",
+        "桌边椅子（下侧）"
+      ],
+      "category": "table",
+      "type": "table",
+      "label": "table",
+      "map_xy": [
+        -0.13205403007406458,
+        -2.1663039845048058
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.65,
+      "mobility": "unknown",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s06_d180_camera_2.jpg",
+            "bbox": [
+              0,
+              0,
+              260,
+              420
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s06_d180_camera_2.jpg",
+            "bbox": [
+              0,
+              0,
+              260,
+              420
+            ],
+            "bearing_deg": 23.102049532416146,
+            "method": "first_surface",
+            "x_m": -0.13205403007406458,
+            "y_m": -2.1663039845048058,
+            "column": 197,
+            "row": 243,
+            "distance_m": 0.7999999999999999
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 4,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_466a3c114803",
+      "name": "沿墙柜子",
+      "aliases": [
+        "cabinet",
+        "柜子",
+        "沿墙柜子"
+      ],
+      "category": "cabinet",
+      "type": "cabinet",
+      "label": "cabinet",
+      "map_xy": [
+        0.8751325645044502,
+        1.0443147835391624
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.85,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d120.jpg",
+            "bbox": [
+              0,
+              0,
+              1000,
+              210
+            ]
+          },
+          {
+            "photo": "panorama_s03_d060.jpg",
+            "bbox": [
+              320,
+              0,
+              1000,
+              370
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d120.jpg",
+            "bbox": [
+              0,
+              0,
+              1000,
+              210
+            ],
+            "bearing_deg": 16.61,
+            "method": "wall_surface",
+            "x_m": 1.068304491009254,
+            "y_m": 0.9303329005058383,
+            "column": 221,
+            "row": 181,
+            "distance_m": 1.8499999999999996
+          },
+          {
+            "photo": "panorama_s03_d060.jpg",
+            "bbox": [
+              320,
+              0,
+              1000,
+              370
+            ],
+            "bearing_deg": 70.29493483617107,
+            "method": "wall_surface",
+            "x_m": 0.6819606379996463,
+            "y_m": 1.1582966665724863,
+            "column": 213,
+            "row": 176,
+            "distance_m": 0.8999999999999998
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 2,
+        "station_ids": [
+          1,
+          3
+        ],
+        "category_candidate_count": 17,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_a41d691c2e8dc84d",
+            "observation_id": "obs_65867be18e648954",
+            "station_id": 1,
+            "image": "panorama_s01_d120.jpg",
+            "bbox_1000": [
+              0.0,
+              0.0,
+              1000.0,
+              165.99999999999997
+            ],
+            "confidence": 0.99
+          },
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_4469a24477d5f310",
+            "observation_id": "obs_35676c2f8d50ba47",
+            "station_id": 3,
+            "image": "panorama_s03_d060.jpg",
+            "bbox_1000": [
+              295.00000000000006,
+              0.0,
+              1000.0,
+              365.0
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_c17308f26f18",
+      "name": "玻璃墙",
+      "aliases": [
+        "glass_wall",
+        "玻璃墙"
+      ],
+      "category": "glass_wall",
+      "type": "glass_wall",
+      "label": "glass_wall",
+      "map_xy": [
+        -2.013901726842752,
+        0.5370261331444326
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.1593694096326046,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              0,
+              0,
+              1000,
+              320
+            ]
+          },
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              330,
+              0,
+              850,
+              260
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              0,
+              0,
+              1000,
+              320
+            ],
+            "bearing_deg": 119.73,
+            "method": "wall_surface",
+            "x_m": -1.37128311010505,
+            "y_m": 1.5020021646674837,
+            "column": 172,
+            "row": 169,
+            "distance_m": 1.3499999999999996
+          },
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              330,
+              0,
+              850,
+              260
+            ],
+            "bearing_deg": 130.16694639922113,
+            "method": "wall_surface",
+            "x_m": -2.656520343580454,
+            "y_m": -0.4279498983786185,
+            "column": 146,
+            "row": 208,
+            "distance_m": 2.6749999999999994
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 2,
+        "station_ids": [
+          1,
+          6
+        ],
+        "category_candidate_count": 25,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_1e6478e79968f5f7",
+            "observation_id": "obs_fc9e69e47965399d",
+            "station_id": 1,
+            "image": "panorama_s01_d180.jpg",
+            "bbox_1000": [
+              0.0,
+              0.0,
+              1000.0,
+              155.0
+            ],
+            "confidence": 0.99
+          },
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_c4e558dd622f631a",
+            "observation_id": "obs_390141fe1702b1af",
+            "station_id": 6,
+            "image": "panorama_s06_d300.jpg",
+            "bbox_1000": [
+              325.0,
+              0.0,
+              630.0,
+              159.99999999999997
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_157329233f11",
+      "name": "玻璃门",
+      "aliases": [
+        "door",
+        "玻璃门",
+        "门"
+      ],
+      "category": "door",
+      "type": "door",
+      "label": "door",
+      "map_xy": [
+        -2.9196918033264327,
+        -0.8362125834144569
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.85,
+      "mobility": "fixed",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              320,
+              0,
+              670,
+              230
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              320,
+              0,
+              670,
+              230
+            ],
+            "bearing_deg": 140.55805206763034,
+            "method": "wall_surface",
+            "x_m": -2.9196918033264327,
+            "y_m": -0.8362125834144569,
+            "column": 141,
+            "row": 216,
+            "distance_m": 2.5749999999999993
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 14,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_461657297a61",
+      "name": "窗户（位置待确认）",
+      "aliases": [
+        "window",
+        "窗户",
+        "窗户（位置待确认）"
+      ],
+      "category": "window",
+      "type": "window",
+      "label": "window",
+      "map_xy": [
+        1.672480855114415,
+        -2.164401773519842
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.1,
+      "mobility": "fixed",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d060.jpg",
+            "bbox": [
+              750,
+              0,
+              1000,
+              100
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d060.jpg",
+            "bbox": [
+              750,
+              0,
+              1000,
+              100
+            ],
+            "bearing_deg": -47.4729453679603,
+            "method": "wall_surface",
+            "x_m": 1.672480855114415,
+            "y_m": -2.164401773519842,
+            "column": 233,
+            "row": 243,
+            "distance_m": 3.5499999999999994
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 11,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_737511543dce",
+      "name": "扫帚 / 簸箕",
+      "aliases": [
+        "broom",
+        "dustpan",
+        "扫帚",
+        "扫帚 / 簸箕",
+        "清扫工具",
+        "簸箕"
+      ],
+      "category": "broom",
+      "type": "broom",
+      "label": "broom",
+      "map_xy": [
+        0.6573746438900266,
+        -3.9597817857442523
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 0.9,
+      "mobility": "unknown",
+      "confidence": 0.85,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s06_d180_camera_2.jpg",
+            "bbox": [
+              790,
+              0,
+              1000,
+              290
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s06_d180_camera_2.jpg",
+            "bbox": [
+              790,
+              0,
+              1000,
+              290
+            ],
+            "bearing_deg": -44.128808239168436,
+            "method": "wall_surface",
+            "x_m": 0.6573746438900266,
+            "y_m": -3.9597817857442523,
+            "column": 213,
+            "row": 279,
+            "distance_m": 2.1249999999999996
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 1,
+        "station_ids": [
+          6
+        ],
+        "category_candidate_count": 2,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_d493f5139f649fcc",
+            "observation_id": "obs_5f713015cc8b4aab",
+            "station_id": 6,
+            "image": "panorama_s06_d180_camera_2.jpg",
+            "bbox_1000": [
+              800.0,
+              0.0,
+              964.0000000000001,
+              279.99999999999994
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_14912b297bc6",
+      "name": "蓝色储物柜（玻璃外候选）",
+      "aliases": [
+        "cabinet",
+        "柜子",
+        "蓝色储物柜（玻璃外候选）"
+      ],
+      "category": "cabinet",
+      "type": "cabinet",
+      "label": "cabinet",
+      "map_xy": [
+        -1.8408395615167457,
+        1.294596023069994
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.0,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": true,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": false,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              820,
+              0,
+              1000,
+              220
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s06_d300.jpg",
+            "bbox": [
+              820,
+              0,
+              1000,
+              220
+            ],
+            "bearing_deg": 103.57815385357591,
+            "method": "beyond_glass",
+            "x_m": -1.7586695366055558,
+            "y_m": 0.9543783177604461,
+            "column": 164,
+            "row": 180,
+            "distance_m": 3.524999999999999
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 1,
+        "station_ids": [
+          6
+        ],
+        "category_candidate_count": 17,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_109f3e8efaf71f26",
+            "observation_id": "obs_7bdfd7e028f7629b",
+            "station_id": 6,
+            "image": "panorama_s06_d300.jpg",
+            "bbox_1000": [
+              325.0,
+              0.0,
+              630.0,
+              157.99999999999997
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_3572228a062e",
+      "name": "楼梯 / 栏杆（玻璃外）",
+      "aliases": [
+        "stairs",
+        "栏杆",
+        "楼梯",
+        "楼梯 / 栏杆（玻璃外）"
+      ],
+      "category": "stairs",
+      "type": "stairs",
+      "label": "stairs",
+      "map_xy": [
+        -0.9231851198138058,
+        2.6692488087930597
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.1,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": true,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": false,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              550,
+              0,
+              970,
+              280
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              550,
+              0,
+              970,
+              280
+            ],
+            "bearing_deg": 95.40564698655427,
+            "method": "beyond_glass",
+            "x_m": -0.8902128679266432,
+            "y_m": 2.3208053691855826,
+            "column": 182,
+            "row": 153,
+            "distance_m": 1.9999999999999996
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 1,
+        "station_ids": [
+          1
+        ],
+        "category_candidate_count": 4,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_a6b832f060ce2207",
+            "observation_id": "obs_5efa869609b032d4",
+            "station_id": 1,
+            "image": "panorama_s01_d180.jpg",
+            "bbox_1000": [
+              525.0,
+              0.0,
+              730.0,
+              144.0
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_d5828198a002",
+      "name": "插座候选 A（已识别）",
+      "aliases": [
+        "outlet",
+        "插座",
+        "插座候选 A（已识别）"
+      ],
+      "category": "outlet",
+      "type": "outlet",
+      "label": "outlet",
+      "map_xy": [
+        -2.814781530442586,
+        -2.964594208394271
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.2,
+      "mobility": "fixed",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d000.jpg",
+            "bbox": [
+              522,
+              14,
+              544,
+              52
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d000.jpg",
+            "bbox": [
+              522,
+              14,
+              544,
+              52
+            ],
+            "bearing_deg": -121.28362674772647,
+            "method": "wall_surface",
+            "x_m": -2.814781530442586,
+            "y_m": -2.964594208394271,
+            "column": 143,
+            "row": 259,
+            "distance_m": 4.0249999999999995
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 6,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_10ca1c0c0c98",
+      "name": "插座候选 B（可能与 A 重复）",
+      "aliases": [
+        "outlet",
+        "插座",
+        "插座候选 B（可能与 A 重复）"
+      ],
+      "category": "outlet",
+      "type": "outlet",
+      "label": "outlet",
+      "map_xy": [
+        -3.5061260555358773,
+        -1.725217533643616
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.2,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s03_d180.jpg",
+            "bbox": [
+              320,
+              8,
+              347,
+              50
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s03_d180.jpg",
+            "bbox": [
+              320,
+              8,
+              347,
+              50
+            ],
+            "bearing_deg": -152.00572468616537,
+            "method": "wall_surface",
+            "x_m": -3.5061260555358773,
+            "y_m": -1.725217533643616,
+            "column": 129,
+            "row": 234,
+            "distance_m": 4.35
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 1,
+        "station_ids": [
+          3
+        ],
+        "category_candidate_count": 6,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_f8bccdad3684a846",
+            "observation_id": "obs_240a6bdefde81cd0",
+            "station_id": 3,
+            "image": "panorama_s03_d180.jpg",
+            "bbox_1000": [
+              325.0,
+              18.0,
+              345.00000000000006,
+              48.0
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_6efd20321340",
+      "name": "绿色出口标牌（位置待核）",
+      "aliases": [
+        "sign",
+        "出口标牌",
+        "标牌",
+        "绿色出口标牌（位置待核）"
+      ],
+      "category": "sign",
+      "type": "sign",
+      "label": "sign",
+      "map_xy": [
+        -2.3731816863338384,
+        0.013419228605651534
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.2,
+      "mobility": "fixed",
+      "confidence": 0.85,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s03_d180_camera_2.jpg",
+            "bbox": [
+              540,
+              20,
+              570,
+              110
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s03_d180_camera_2.jpg",
+            "bbox": [
+              540,
+              20,
+              570,
+              110
+            ],
+            "bearing_deg": -173.61210359337556,
+            "method": "wall_surface",
+            "x_m": -2.3731816863338384,
+            "y_m": 0.013419228605651534,
+            "column": 152,
+            "row": 199,
+            "distance_m": 2.724999999999999
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 1,
+        "station_ids": [
+          3
+        ],
+        "category_candidate_count": 24,
+        "matched_views": [
+          {
+            "annotation": "semantic_object_memory.json",
+            "candidate_id": "obj_c91bd18b86a76a0a",
+            "observation_id": "obs_6df1d650082b970c",
+            "station_id": 3,
+            "image": "panorama_s03_d180_camera_2.jpg",
+            "bbox_1000": [
+              550.9999999999999,
+              44.1,
+              578.0000000000001,
+              78.75000000000001
+            ],
+            "confidence": 0.99
+          }
+        ]
+      }
+    },
+    {
+      "id": "layout_091140aeb815",
+      "name": "玻璃外悬挂灯具",
+      "aliases": [
+        "light",
+        "灯具",
+        "玻璃外悬挂灯具"
+      ],
+      "category": "light",
+      "type": "light",
+      "label": "light",
+      "map_xy": [
+        -0.931640857550577,
+        2.668433242633801
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.2,
+      "mobility": "fixed",
+      "confidence": 0.7,
+      "behind_glass": true,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": false,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              725,
+              0,
+              790,
+              110
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d180.jpg",
+            "bbox": [
+              725,
+              0,
+              790,
+              110
+            ],
+            "bearing_deg": 95.61276470715691,
+            "method": "beyond_glass",
+            "x_m": -0.8974092404685762,
+            "y_m": 2.320111270326639,
+            "column": 182,
+            "row": 153,
+            "distance_m": 1.9999999999999996
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 5,
+        "matched_views": []
+      }
+    },
+    {
+      "id": "layout_c31ae9355b81",
+      "name": "柜面绿色标记",
+      "aliases": [
+        "marker",
+        "柜面绿色标记",
+        "标记"
+      ],
+      "category": "marker",
+      "type": "marker",
+      "label": "marker",
+      "map_xy": [
+        1.5639493640024709,
+        0.5740180655954148
+      ],
+      "approach_xy": null,
+      "position_status": "reviewed_layout_prior",
+      "position_method": "reviewed_20260917_multiview_relations_and_lidar_surface",
+      "position_uncertainty_m": 1.0,
+      "mobility": "fixed",
+      "confidence": 0.7,
+      "behind_glass": false,
+      "semantic_reviewed": true,
+      "position_verified": false,
+      "approach_verified": false,
+      "navigation_allowed": false,
+      "localization_allowed": false,
+      "grasp_allowed": false,
+      "search_region_allowed": true,
+      "requires_visual_recheck": true,
+      "reviewed_source": {
+        "file": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+        "evidence": [
+          {
+            "photo": "panorama_s01_d120.jpg",
+            "bbox": [
+              580,
+              0,
+              670,
+              100
+            ]
+          }
+        ],
+        "estimates": [
+          {
+            "photo": "panorama_s01_d120.jpg",
+            "bbox": [
+              580,
+              0,
+              670,
+              100
+            ],
+            "bearing_deg": 4.34903524754194,
+            "method": "first_surface",
+            "x_m": 1.5639493640024709,
+            "y_m": 0.5740180655954148,
+            "column": 231,
+            "row": 188,
+            "distance_m": 2.2749999999999995
+          }
+        ]
+      },
+      "annotation_support": {
+        "direct_view_matches": 0,
+        "station_ids": [],
+        "category_candidate_count": 0,
+        "matched_views": []
+      }
+    }
+  ],
+  "scene_relations": [
+    {
+      "subject_id": "layout_157329233f11",
+      "relation": "connected_to",
+      "object_id": "layout_c17308f26f18"
+    },
+    {
+      "subject_id": "layout_6efd20321340",
+      "relation": "near_and_above",
+      "object_id": "layout_157329233f11"
+    },
+    {
+      "subject_id": "layout_3572228a062e",
+      "relation": "behind",
+      "object_id": "layout_c17308f26f18"
+    },
+    {
+      "subject_id": "layout_14912b297bc6",
+      "relation": "behind",
+      "object_id": "layout_c17308f26f18"
+    },
+    {
+      "subject_id": "layout_091140aeb815",
+      "relation": "behind",
+      "object_id": "layout_c17308f26f18"
+    },
+    {
+      "subject_id": "layout_fdf066196a63",
+      "relation": "around",
+      "object_id": "layout_c631488036ad"
+    },
+    {
+      "subject_id": "layout_1ed6f7e964f2",
+      "relation": "around",
+      "object_id": "layout_c631488036ad"
+    },
+    {
+      "subject_id": "layout_461657297a61",
+      "relation": "opposite_room_side_from",
+      "object_id": "layout_c17308f26f18"
+    }
+  ],
+  "search_regions": [
+    {
+      "id": "layout_c631488036ad",
+      "query": "中央桌子",
+      "map_xy": [
+        0.033831908831908564,
+        -1.3643162393162402
+      ],
+      "radius_m": 0.95,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_fdf066196a63",
+      "query": "桌边椅子（右侧）",
+      "map_xy": [
+        0.43056314644852156,
+        -0.5134034785610105
+      ],
+      "radius_m": 0.95,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_1ed6f7e964f2",
+      "query": "桌边椅子（下侧）",
+      "map_xy": [
+        -0.13205403007406458,
+        -2.1663039845048058
+      ],
+      "radius_m": 0.95,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_466a3c114803",
+      "query": "沿墙柜子",
+      "map_xy": [
+        0.8751325645044502,
+        1.0443147835391624
+      ],
+      "radius_m": 0.95,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_c17308f26f18",
+      "query": "玻璃墙",
+      "map_xy": [
+        -2.013901726842752,
+        0.5370261331444326
+      ],
+      "radius_m": 1.1593694096326046,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_157329233f11",
+      "query": "玻璃门",
+      "map_xy": [
+        -2.9196918033264327,
+        -0.8362125834144569
+      ],
+      "radius_m": 0.85,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_461657297a61",
+      "query": "窗户（位置待确认）",
+      "map_xy": [
+        1.672480855114415,
+        -2.164401773519842
+      ],
+      "radius_m": 1.1,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_737511543dce",
+      "query": "扫帚 / 簸箕",
+      "map_xy": [
+        0.6573746438900266,
+        -3.9597817857442523
+      ],
+      "radius_m": 0.9,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_d5828198a002",
+      "query": "插座候选 A（已识别）",
+      "map_xy": [
+        -2.814781530442586,
+        -2.964594208394271
+      ],
+      "radius_m": 1.2,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_10ca1c0c0c98",
+      "query": "插座候选 B（可能与 A 重复）",
+      "map_xy": [
+        -3.5061260555358773,
+        -1.725217533643616
+      ],
+      "radius_m": 1.2,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_6efd20321340",
+      "query": "绿色出口标牌（位置待核）",
+      "map_xy": [
+        -2.3731816863338384,
+        0.013419228605651534
+      ],
+      "radius_m": 1.2,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    },
+    {
+      "id": "layout_c31ae9355b81",
+      "query": "柜面绿色标记",
+      "map_xy": [
+        1.5639493640024709,
+        0.5740180655954148
+      ],
+      "radius_m": 1.0,
+      "source": "reviewed_layout_prior",
+      "requires_visual_recheck": true
+    }
+  ],
+  "annotation_sources": [
+    {
+      "path": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\qwen_reannotation_20260918_142739\\results\\quality_filtered\\semantic_object_memory.json",
+      "sha256": "016faabf332cb103f3ee6185158c1d21116e18b3a93f4301f201e3f28cb1affe",
+      "object_count": 150
+    }
+  ],
+  "reviewed_layout_source": {
+    "path": "D:\\xingxianfeng_files\\dachuang\\car1.0\\semantic_maps\\ble_scene_17_20260917_190706\\complete_objects\\supplemented_object_map.json",
+    "sha256": "79c135f99646b6d20b59a0aac84bd1584519ba66de399a1c5833aa9710db4327"
+  },
+  "safety": {
+    "direct_navigation_to_prior": false,
+    "localization_correction_from_unverified_prior": false,
+    "direct_grasp_from_prior": false,
+    "live_visual_recheck_required": true
+  },
+  "release": {
+    "schema": "semantic_map_release.v1",
+    "release_id": "ble_scene_17_semantic_release_20260919",
+    "successful_inspection_run": "20260917_190706",
+    "qwen_reannotation_run": "20260918_142739",
+    "occupancy_map": "ble_scene_17.pgm",
+    "occupancy_yaml": "ble_scene_17.yaml",
+    "observation_map": "semantic_observation_20260917_190706.json",
+    "qwen_audit_map": "qwen_reannotation_20260918.json",
+    "combined_map": "semantic_relationship_map_20260919.png",
+    "localization_landmarks": "semantic_localization_landmarks.json",
+    "usage": {
+      "metric_pose_source": "lidar_occupancy_map",
+      "semantic_localization": "verified_landmarks_only",
+      "task_search": "estimated_regions_require_live_visual_recheck",
+      "direct_navigation_to_unverified_object": false,
+      "direct_grasp_from_map_coordinate": false
+    }
+  },
+  "observation_stations": [
+    {
+      "station": 1,
+      "photo_pairs": 6,
+      "x_m": -0.7073166666666667,
+      "y_m": 0.3887,
+      "names": [
+        "门",
+        "窗户",
+        "玻璃",
+        "柜子",
+        "楼梯",
+        "灯具",
+        "门把手",
+        "门框",
+        "地板上的小物体",
+        "地板上的小红点",
+        "地板上的绿色斑点",
+        "地板上的蓝色斑点",
+        "地板上的黑色痕迹",
+        "地板标记线",
+        "插座",
+        "椅子",
+        "涂鸦",
+        "玻璃墙"
+      ],
+      "background_names": [
+        "地板",
+        "墙壁"
+      ],
+      "yaw_deg": [
+        -118.0,
+        -14.37,
+        16.61,
+        119.73,
+        119.68,
+        -166.25
+      ],
+      "empty_results": 0,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 2,
+      "photo_pairs": 2,
+      "x_m": -1.7168,
+      "y_m": 0.08465,
+      "names": [
+        "门",
+        "反射",
+        "扫帚",
+        "插座",
+        "柜子",
+        "桌子",
+        "椅子",
+        "玻璃",
+        "窗户",
+        "门把手",
+        "门框"
+      ],
+      "background_names": [
+        "地板",
+        "墙壁",
+        "踢脚线"
+      ],
+      "yaw_deg": [
+        -157.46,
+        -66.58
+      ],
+      "empty_results": 0,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 3,
+      "photo_pairs": 6,
+      "x_m": 0.35991666666666666,
+      "y_m": 0.3203166666666667,
+      "names": [
+        "门",
+        "柜子",
+        "椅子",
+        "玻璃",
+        "门框",
+        "地板上的小物体",
+        "地板标记",
+        "插座",
+        "标牌",
+        "窗户",
+        "地板上的小斑点",
+        "开关"
+      ],
+      "background_names": [
+        "地板",
+        "墙壁"
+      ],
+      "yaw_deg": [
+        -48.56,
+        85.84,
+        51.36,
+        -168.15,
+        -168.16,
+        -61.55
+      ],
+      "empty_results": 0,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 4,
+      "photo_pairs": 6,
+      "x_m": 1.0687666666666666,
+      "y_m": -0.79305,
+      "names": [
+        "门",
+        "地板上的小物体",
+        "柜子",
+        "地板上的反光",
+        "窗户",
+        "地板上的小斑点",
+        "地板上的污渍",
+        "椅子",
+        "灯具",
+        "绿色痕迹",
+        "门框",
+        "黑色柱子"
+      ],
+      "background_names": [
+        "反光",
+        "地板",
+        "墙壁",
+        "踢脚线"
+      ],
+      "yaw_deg": [
+        -50.55,
+        52.97,
+        76.2,
+        169.68,
+        -115.48,
+        -105.92
+      ],
+      "empty_results": 1,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 5,
+      "photo_pairs": 6,
+      "x_m": 0.31775000000000003,
+      "y_m": -2.87805,
+      "names": [
+        "门",
+        "地面碎屑",
+        "椅子",
+        "门框",
+        "光斑",
+        "地板上的光斑",
+        "插座",
+        "柜子",
+        "玻璃",
+        "窗户",
+        "蓝色标记",
+        "鞋子"
+      ],
+      "background_names": [
+        "反光",
+        "地板",
+        "墙壁",
+        "墙角",
+        "踢脚线"
+      ],
+      "yaw_deg": [
+        -145.68,
+        -21.78,
+        -21.77,
+        104.18,
+        64.81,
+        152.85
+      ],
+      "empty_results": 1,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 6,
+      "photo_pairs": 6,
+      "x_m": -0.8641166666666666,
+      "y_m": -2.5113333333333334,
+      "names": [
+        "门",
+        "椅子",
+        "楼梯",
+        "玻璃",
+        "门框",
+        "人",
+        "地上的小物体",
+        "地面痕迹",
+        "地面碎屑",
+        "小物体",
+        "扫帚",
+        "插座",
+        "柜子",
+        "标牌",
+        "簸箕",
+        "蓝色储物柜",
+        "蓝色区域",
+        "门把手"
+      ],
+      "background_names": [
+        "反光",
+        "地板",
+        "地面纹理",
+        "墙壁",
+        "踢脚线"
+      ],
+      "yaw_deg": [
+        148.89,
+        -116.61,
+        -38.02,
+        -9.65,
+        62.57,
+        139.06
+      ],
+      "empty_results": 1,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    },
+    {
+      "station": 7,
+      "photo_pairs": 1,
+      "x_m": -1.8199,
+      "y_m": -1.8604,
+      "names": [
+        "反射",
+        "柜子",
+        "楼梯",
+        "玻璃",
+        "门"
+      ],
+      "background_names": [
+        "地板",
+        "墙壁"
+      ],
+      "yaw_deg": [
+        103.41
+      ],
+      "empty_results": 0,
+      "error_results": 0,
+      "names_are_photo_observations_not_object_coordinates": true
+    }
+  ],
+  "inspection_coverage": 0.883959,
+  "source_artifacts": {
+    "successful_observation_sha256": "8a14014d53b858a1cb5167c5d177970f0fd81d63611546d574e5c4c56c8c1804",
+    "qwen_quality_filtered_sha256": "016faabf332cb103f3ee6185158c1d21116e18b3a93f4301f201e3f28cb1affe",
+    "occupancy_map_sha256": "7bb607da3abdf9d92de73d76d94950dd13b1ddb07c8838b199b05a455a7d00be",
+    "occupancy_yaml_sha256": "da84028ca8e1dedc8b87b7ed108e3293d93667f2df5d0f42f82df213d6da9327"
+  }
+}

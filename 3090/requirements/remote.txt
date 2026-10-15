@@ -1,6 +1,0 @@
--r base.txt
--r qwen.txt
--r yolo.txt
-fastapi>=0.110
-uvicorn[standard]>=0.29
-websocket-client>=1.8

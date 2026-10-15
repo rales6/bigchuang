@@ -1,0 +1,107 @@
+{
+  "archive_root": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo",
+  "permanent_deletions": false,
+  "moves": [
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\car1.0",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\car1.0",
+      "moved": false,
+      "retained_in_place": true,
+      "error": "The process cannot access the file because it is being used by another process."
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\car1.0 - 副本",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\car1.0 - 副本",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\car",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\car",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\car_sim",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\car_sim",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\RobotCompanionAndroid",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\RobotCompanionAndroid",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\CAD",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\CAD",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\test",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\test",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\windows_network_proxy_scripts_fixed",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\windows_network_proxy_scripts_fixed",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\arm_teach_model_sjtu.py",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\arm_teach_model_sjtu.py",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\ble_direct_test_pi.py",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\ble_direct_test_pi.py",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\train_arm_mlp_sjtu.py",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\train_arm_mlp_sjtu.py",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\web_app_pi.py",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\web_app_pi.py",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\git_daily_flow.txt",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\git_daily_flow.txt",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    },
+    {
+      "source": "D:\\xingxianfeng_files\\dachuang\\git_upload.txt",
+      "destination": "D:\\xingxianfeng_files\\dachuang\\_archive\\20261015_165826_before_monorepo\\git_upload.txt",
+      "moved": true,
+      "retained_in_place": false,
+      "error": null
+    }
+  ],
+  "original_git_history_preserved": true,
+  "remote_data_changed": false,
+  "restore": "Move the desired item from its exact destination back to its original source; never overwrite a newer item."
+}

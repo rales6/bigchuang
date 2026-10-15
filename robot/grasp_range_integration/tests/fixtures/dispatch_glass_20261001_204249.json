@@ -1,0 +1,15 @@
+{
+  "source_run": "20261001_204249",
+  "source_event": "midrun_recovery_clearance index 207 and midrun_pulse_authorization",
+  "purpose": "Recorded pose and scalar glass-margin replay, not live motion authority",
+  "raw_scan_included": false,
+  "pose": [-1.2213474382020268, -1.1425191261799805, 0.8566006779727515],
+  "position_uncertainty_m": 0.5528521045027298,
+  "selection_scan_age_s": 0.0489915419984755,
+  "dispatch_scan_age_s": 0.0795213879991935,
+  "minimum_boundary_distance_m": 1.6035475961029428,
+  "selection_required_m": 1.60244872130212,
+  "dispatch_required_m": 1.6146606597024071,
+  "linear_mm_s": 400,
+  "ttl_ms": 400
+}

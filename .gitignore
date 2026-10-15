@@ -1,185 +1,90 @@
-<<<<<<< HEAD
-# ============================================================
-# Python 虚拟环境
-# ============================================================
-
+# Local environments / Python generated files
 .venv/
+.venv-*/
 venv/
-env/
-ENV/
-
-# ============================================================
-# Python 缓存和编译文件
-# ============================================================
-
 __pycache__/
 *.py[cod]
-*$py.class
-
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.pyre/
-.pytype/
-.coverage
-.coverage.*
-htmlcov/
-
-# ============================================================
-# Python 打包和构建产物
-# ============================================================
-
+*.egg-info/
 build/
 dist/
-develop-eggs/
-downloads/
-eggs/
-.eggs/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
+.coverage*
+htmlcov/
 
-*.egg
-*.egg-info/
-.installed.cfg
-MANIFEST
-
-# ============================================================
-# C / C++ 编译文件
-# ============================================================
-
-*.o
-*.obj
-*.lo
-*.la
-*.a
-*.lib
-*.so
-*.so.*
-*.dll
-*.dylib
-*.exe
-*.out
-*.app
-
-# ============================================================
-# CMake 构建文件
-# ============================================================
-
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-
-compile_commands.json
-
-# 如果项目本身需要提交手写的 Makefile，
-# 请删除上面的 Makefile 这一行
-
-# ============================================================
-# Visual Studio 编译文件
-# ============================================================
-
-.vs/
-Debug/
-Release/
-x64/
-x86/
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.vcxproj.user
-
-# ============================================================
-# 编辑器本地配置
-# ============================================================
-
-.vscode/
+# IDE / OS / Android build output (Gradle wrapper remains versioned)
 .idea/
-*.swp
-*.swo
-*~
-
-# 如果团队需要共享 VS Code 配置，
-# 可以删除 .vscode/ 这一行
-
-# ============================================================
-# 日志和临时文件
-# ============================================================
-
-*.log
-logs/
-tmp/
-temp/
-.cache/
-.cache
-
-# ============================================================
-# 系统文件
-# ============================================================
-
-.DS_Store
+.vscode/
+.gradle/
+.kotlin/
+.tooling/
+.externalNativeBuild/
+.cxx/
+local.properties
+*.iml
+*.apk
+*.aab
+*.keystore
+*.jks
 Thumbs.db
-desktop.ini
+.DS_Store
 
-# ============================================================
-# 环境变量、密码和密钥
-# ============================================================
-
+# Never commit credentials, running-service state or command history
 .env
 .env.*
 !.env.example
-
-*.pem
-*.key
-*.crt
 secrets/
 credentials/
+config/local/
+runtime_config/
+hardware_token
+*.pem
+*.key
+*.sqlite*
+*.db
 
-# ============================================================
-# Jupyter Notebook 临时文件
-# ============================================================
-
-.ipynb_checkpoints/
-
-# ============================================================
-# AI 模型权重和大型二进制文件
-# ============================================================
-
+# Large remote datasets / weights / recordings
 *.pt
 *.pth
-*.ckpt
 *.onnx
-*.engine
 *.safetensors
-*.bin
+*.engine
+*.ckpt
+*.avi
+*.mp4
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.7z
 
-# ============================================================
-# 数据集、运行结果与输出
-# 根据项目实际目录名称调整
-# ============================================================
-
+# Experiment results belong to the machines or external recoverable archive
+logs/
+*.log
+*.out
+runs/
+search_runs/
+simulation_runs/
 outputs/
 output/
-runs/
 results/
-checkpoints/
-
-# 如确认这些目录中只有大型数据，可取消下面的注释
-# data/
-# datasets/
-=======
-.venv/
+diagnostics/
+debug_reports/
+backups/
 legacy_backup/
-car.zip
-maps
-tests
-*/__pycache__/
-*/*/__pycache__/
-*/.venv-win/
-car_sim/output/
->>>>>>> aaa83c0 (miller-x)
+deployment_backups/
+deployment_snapshots/
+task_videos/
+complete_test_output/
+stationary_pose_runs/
+*.bak*
+*.old
+*.staged
+*.pid
+*.lock
+runtime/
+.local/
+
+# Test fixtures, Gradle wrapper JAR and current maps ARE source-controlled.
+!apps/android/gradle/wrapper/gradle-wrapper.jar

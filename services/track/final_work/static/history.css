@@ -1,0 +1,21 @@
+/* History rows must not shrink when the list contains many conversations. */
+.sidebar>.brand,.sidebar>.new-chat,.sidebar>.side-label,.sidebar>.sidebar-foot{flex-shrink:0}
+.conversation-list{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:2px}
+.conversation-list>.conversation{flex:0 0 auto;min-height:64px;min-width:0;line-height:1.6}
+.conversation-list>.conversation small{line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conversation-list>.conversation{position:relative;padding-right:35px}
+.history-more{position:absolute;right:4px;top:12px;width:26px;height:28px;padding:0;border-color:transparent;background:transparent;font-size:20px;color:var(--muted)}
+.history-more:hover,.history-more:focus-visible{color:var(--text);background:#253440}
+.conversation:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.history-menu{position:fixed;z-index:1000;width:186px;padding:5px;border:1px solid var(--line);border-radius:11px;background:#16222d;box-shadow:0 8px 28px #0007}
+.history-menu[hidden]{display:none}
+.history-menu button{width:100%;padding:10px;border:0;text-align:left;color:#ffa6a6;background:transparent}
+.history-menu button:hover,.history-menu button:focus-visible{background:#38282e}
+.history-delete-dialog{width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:25px;border:1px solid var(--line);border-radius:16px;background:#14202b;color:#e5edf2;box-shadow:0 15px 65px #0007}
+.history-delete-dialog::backdrop{background:#0009}
+.history-delete-dialog h2{margin:0 0 14px;font-size:20px}
+.history-delete-name{overflow-wrap:anywhere;font-size:14px;color:#d4e5dd}
+.history-delete-hint{font-size:12px;line-height:1.8;color:#91a5b5}
+.history-delete-error{color:#ffadad;font-size:12px;line-height:1.6}
+.history-delete-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.history-delete-confirm{background:#763a41;color:#fff;border-color:#a95660}

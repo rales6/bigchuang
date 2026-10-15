@@ -1,0 +1,24 @@
+{
+  "schema": "phase1.verified_glass_boundaries.v1",
+  "verified": false,
+  "boundary_policy": "user_confirmed_left_side_half_plane",
+  "user_confirmation": {
+    "source": "user",
+    "date": "2026-09-26",
+    "text": "玻璃墙就默认为左边那一侧全部"
+  },
+  "geometry_source": "bound_map_occupied_outline_estimate",
+  "verification_note": "按用户指定将房间左侧全段（含门位置）及外侧列为禁行；几何由绑定PGM左侧已有外轮廓估计，不是现场米制测量。verified保持false，不能冒充实测。",
+  "map_pgm_sha256": "7bb607da3abdf9d92de73d76d94950dd13b1ddb07c8838b199b05a455a7d00be",
+  "map_yaml_sha256": "da84028ca8e1dedc8b87b7ed108e3293d93667f2df5d0f42f82df213d6da9327",
+  "boundary_uncertainty_m": 0.20,
+  "allowed_reference_xy_m": [-1.55, -2.60],
+  "segments_xy_m": [[[-4.08040614, -2.60], [-0.70226356, 2.60]]],
+  "geometry_evidence": {
+    "method": "total_least_squares_existing_occupied_left_outline_then_continuous_extension",
+    "occupied_cell_selection": "-3.55<=x<=-1.80; abs(y-1.5*x-3.5)<0.20",
+    "supporting_cells": 56,
+    "maximum_fit_residual_m": 0.03743,
+    "note": "拟合残差不是实际墙位误差；因此另加0.20m估计余量。左侧指发布地图的左上至左下斜边，不是当前车头左侧。"
+  }
+}

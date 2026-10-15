@@ -1,0 +1,17 @@
+[Unit]
+Description=Final Work Raspberry Pi reverse tunnel to 3090
+Wants=network-online.target
+Requires=final-work-pi-bridge.service
+After=network-online.target final-work-pi-bridge.service
+
+[Service]
+Type=simple
+User=dachuang
+WorkingDirectory=/home/dachuang/dachuang/track
+ExecStart=/bin/bash /home/dachuang/dachuang/track/final_work/start_pi_reverse_tunnel.sh
+Restart=always
+RestartSec=3
+TimeoutStopSec=8
+
+[Install]
+WantedBy=multi-user.target

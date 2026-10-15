@@ -1,0 +1,16 @@
+{
+  "schema": "grasp_model_dry_run.v1",
+  "model_url_on_pi": "http://192.168.55.33:8022",
+  "model_url_from_lan": "http://202.121.181.124:8022",
+  "camera_stream_base_url_on_pi": "http://127.0.0.1:8080",
+  "trained_target": "红色小物块",
+  "prediction_timeout_s": 120.0,
+  "parameter_limits": {
+    "s0": [500, 2500],
+    "s1": [800, 1700],
+    "s2": [1500, 2200]
+  },
+  "execution_enabled": false,
+  "note": "本配置只允许模型预测；没有任何底盘、BLE 或机械臂执行入口。"
+}
+

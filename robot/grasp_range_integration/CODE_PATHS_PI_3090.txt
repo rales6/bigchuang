@@ -1,0 +1,107 @@
+小车“指定地点寻物并夹取”全流程代码位置与交接
+核对日期：2026-09-29
+
+这份文件基于用户提供的 CODE_PATHS_PI_3090.txt 增补。原附件没有被覆盖。
+当前编排允许明确地点、明确类别的单个物品（颜色可选）进入“寻物→追踪→模型夹取”链，例如绿色小物块；本轮寻物确认的目标描述会传给后续追踪和模型，夹取时模型重新识别双目中心。权重仍主要来自红色小物块示教，换目标不等于该物品的抓取高度、尺寸已标定成功。机器人动作前须现场看护和急停。本文说明代码可执行链，不宣称本次集成已完成一轮其他物品的实车验收。
+DeepSeek 地点规划需将指令及语义地图关系发送到外部 API。树莓派网页编排默认拒绝外发；用户明确允许后，可在服务环境设置 FINAL_WORK_ALLOW_DEEPSEEK_SEMANTIC_UPLOAD=1，或把 track/final_work/data/deepseek_semantic_upload.allowed 写为 1。当前用户已允许后续任务持续外发，持久开关已启用；可通过 car1.0/grasp_range_integration/tools/set_deepseek_semantic_upload.py --disable 撤销。开关不授权车辆运动；实车任务仍由网页和现场人员另行确认。
+2026-09-29 用户批准的一次只规划验证已通过：status=executable，单个 red block，柜子对应 search_region_id=layout_466a3c114803，motion_started/camera_started/arm_started 均为 false。此次未运行实车完整链。随后用户明确允许后续任务持续外发，已启用上述持久开关；没有启动小车。
+
+一、从一句话到抓取动作的真实调用链
+
+网页 http://192.168.55.33:8030/
+  -> 3090 /home/sjtu/track/final_work/gpu/app.py：保存指令、计划、步骤状态；确认后自动推进
+  -> 3090 /home/sjtu/track/final_work/gpu/planner.py、qwen_hub.py：把“柜子边上”“红色小物块”“夹取”编成 pick 计划
+  -> 3090 /home/sjtu/track/final_work/gpu/plan_adaptation.py：给带地点的 patrol_search 标记 phase1_deepseek_pick_v1；若起点看到红块但不能证明在柜子附近，不能跳过地图寻物
+  -> 3090 /home/sjtu/track/final_work/gpu/robot_client.py：通过反向 SSH 隧道发到树莓派 /interfaces/observation-plan
+  -> 树莓派 /home/dachuang/dachuang/track/final_work/pi/robot_bridge.py：校验实车令牌、独占任务进程，选择新寻物分支
+  -> 树莓派 /home/dachuang/dachuang/track/final_work/pi/map_navigation_adapter.py：调用 DeepSeek 第一阶段文本规划，并构造受验证的寻物命令
+  -> 树莓派 /home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/plan_phase1_deepseek.sh：按原始指令生成阶段一 decision.json（不动小车）
+  -> 同目录 verified_search.py：运行 run_phase1_find_only.sh；只接受本轮 mission.json 的真实双摄成功结果
+  -> run_phase1_find_only.sh / relationship_find_only_entry.py：雷达起步定位、可见区域路线、低速到柜子视野、双摄拍照、Qwen/必要时 DeepSeek Vision 识别，找到即停车，不夹取
+  -> 网页见寻物进程“已验证成功”才自动运行 align_for_grasp：树莓派 pursuit_session.py -> pursuit/run_visual_pursuit.py（沿用该轮已确认的目标描述；Qwen 初次框选、YOLO 持续追踪，雷达保护接近）
+  -> pursuit/hull_micro_adjust.py：目标进入左右各自示教区域之前的小幅底盘调整，重新拍照验收
+  -> 网页运行 model_grasp：树莓派 robot_bridge.py -> grasp_execution.py -> 本地 grab_visual/web_app.py -> 3090 grab_visual/arm_grasp_server.py、arm_teach_model.py、visual_servo.py、grasp_sequence.py
+  -> 网页 verify_grasp：等待人工核对实物是否真正抓住，之后 report_result。机械臂 phase=done 本身不能证明实际抓牢。
+
+整个网页计划会在一项失败时停止，不会跨越失败的寻物、视觉对准或夹取前门槛。手动点网页“急停”使用 /actions/emergency-stop；不能把关闭浏览器等同于急停。
+
+二、地图、规划、导航、识别：谁负责什么
+
+1. 地图和语义发布包（树莓派）
+   /home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/
+   ble_scene_17.pgm、ble_scene_17.yaml：雷达占据地图和坐标；决定能否通行，不是夹取坐标。
+   semantic_runtime.json：柜子等语义区域和空间关系；地点名称绑定到候选工作区。
+   semantic_relationship_map_20260919.png：人工查看的关系语义图。
+   semantic_localization_landmarks.json：定位的视觉参照。
+   上述发布文件均只读，不覆盖原始 20260917_190706 成功地图。
+
+2. 自然语言/路线（树莓派 car1.0 的本次适配层）
+   grasp_range_integration/phase1/deepseek_planner.py：DeepSeek 只解析目标和地点；确定性代码校验目标类别、可选颜色、柜子在地图中的搜索区域、阶段一权限。模型不能直接产生行驶坐标。
+   grasp_range_integration/phase1/prepare_phase1.py、plan_phase1_deepseek.sh：只生成 decision.json；不可执行或需澄清时不动硬件。
+   grasp_range_integration/phase1/visibility_route_planner.py：按雷达可达性、相机视角、识别距离生成工作区观察站；不是把柜子中心设成导航终点。
+   grasp_range_integration/phase1/relationship_find_only_entry.py：把这些约束装到原寻物执行器；地图/雷达、玻璃边界、转向和运动反馈仍受实时保护。
+   grasp_range_integration/phase1/ble_startup_recovery.py：起步 BLE 扫描连续两次失败后，确认无并行实车运动进程，执行一次 Bluetooth 断开/服务重启/解除阻塞（若工具可用）/上电，再用剩余次数重新连接；不发底盘运动指令。
+   grasp_range_integration/phase1/observation_recovery.py：单摄红块或图像红区只引导原站位复拍、换角度；不能直接宣告找到。跨帧稳定、双摄完整且模型复核通过后才可能确认。
+   grasp_range_integration/phase1/red_target_deepseek.py：Qwen 漏检时，用现有 deepseek_vision.json 对指定左右裁剪图做两次独立复核；仅分类，不能选择位置或发运动指令。
+   raspberry_pi/object_search_mission.py：冻结寻物主体，负责雷达定位、A*、临时障碍、到站双摄照片、mission.json 和停车；禁止在交接工作中修改。
+
+3. Qwen 与 YOLO（3090）
+   /home/sjtu/track/final_work/gpu/qwen_hub.py：网页高层计划；可按配置选择 Qwen 或 DeepSeek 文本规划。
+   /home/sjtu/3090/models/qwen/Qwen3-VL-2B-Instruct/：常规目标/语义识别权重。
+   /home/sjtu/3090/models/yolo/yolo11n-seg.pt：持续视觉追踪或安全物体检测权重。
+   /home/sjtu/track/pursuit_server.py：追踪模型服务，端口 8021。
+   这些模型和底层追踪代码只读；本次仅改两端的编排适配层和 car1.0 接口门。
+
+三、从寻物转交近距接近的唯一有效条件
+
+新增树莓派发布包：grasp_range_integration/phase1/verified_search.py。
+它不能仅看进程退出码 0，因为原寻物执行器“正常检查完但没有找到”也可能返回 0。必须同时满足：
+  1. 输出目录为本次启动后新建，位于 search_runs/ble_scene_17/ 下，不能复用旧成功任务；
+  2. mission.json 原始指令一致、硬件模式为实车、result=success、有 finished_at；
+  3. 最终 supervisor_directive=report_success；
+  4. 最后一次 observation_complete 的 complete_cameras 同时为 left/right、dual_camera_confirmed=true；
+  5. 同一 stereo_pair_id 两个检测都在请求工作区，类别/来源/颜色/边界框完整性校验均通过；
+  6. 左右原图真实存在且不是同一文件。
+  7. 同一合格双摄对的框中心和垂直差满足原追踪器起始接收视野，左右各留15像素余量；边缘双摄虽可作为寻物线索，但不能提前交接，须在原观察站小角度复拍。
+通过后写 phase1_verified_handoff.json，字段 object_range_established=false、arm_grasp_authorized=false。也就是说：地图寻物仅授权进入下一段新鲜视觉追踪，绝不把双摄框冒充米制距离或直接授权机械臂动作。失败则非零退出，网页任务保持 blocked，不启动后段。
+网页桥接另核对**本轮寻物进程的日志**是否宣布同一任务 ID/指令/目录的交接，拒绝复用旧成功记录。追踪启动后，被动证据记录位于 track/final_work/logs/handoff_evidence/<本轮追踪日志名>/handoff_evidence.json：包含第一阶段左右原图路径、最多三张追踪服务 JPEG、每帧服务状态和 /ground 日志摘要。旧框仅供诊断，视觉追踪仍须用新帧识别。记录器不控制底盘或机械臂，不能代替现场实车验收。
+
+四、近距接近及夹取的现有位置（来自用户提供的路径表，并已核对）
+
+树莓派 /home/dachuang/dachuang/track/final_work/pi/
+  pursuit_session.py：停止相机预览以独占左右相机/BLE；启动追踪；目标进入示教区域后执行 hull_micro_adjust；结束时恢复预览。可带 --grasp 用于独立追踪加抓取测试。
+  grasp_execution.py：调用 /api/arm-teach/predict-grasp 并等待机械臂状态走到 done；失败和急停会停止，不把“已入队”当完成。
+  bounded_motion.py、motion_session.py：短时有界底盘动作、BLE 所有权和服务恢复，交接层不得绕过。
+  robot_bridge.py：网页动作入口、令牌、进程独占和急停。
+树莓派 /home/dachuang/dachuang/track/pursuit/
+  run_visual_pursuit.py、pursuit_controller.py、pursuit_config.py：Qwen 初定位、YOLO 连续追踪和雷达限制下的视觉伺服。
+  hull_micro_adjust.py：左右相机各自示教区域/边沿的微调，实车短脉冲反馈后复拍。
+  camera_contract.py、camera_stream.py：训练所用左右相机顺序。不得随意互换。
+树莓派 /home/dachuang/grab_visual/
+  web_app.py、arm_teach.py、teaching_region.py、start_web.sh：双目预览、凸包和机械臂本地服务（8080）。
+  arm_teach.py：本次用户授权的窄范围例外；模型预测姿态到位并稳定后、闭爪前增加 s2=-10μs 微调，3号由固件按 s3=3100-s2 镜像联动。可用 ARM_GRASP_S2_NUDGE_US=0 禁用，绝对值上限25μs；方向待实机确认，模型权重未改。
+3090 /home/sjtu/grab_visual/
+  arm_grasp_server.py：模型服务（8020；以当前运行配置为准）。
+  arm_teach_model.py、visual_servo.py、grasp_sequence.py：左右图像到舵机参数、检查和动作序列。
+  arm_teach_artifacts/model.pt、model_state.json：当前实际权重/元数据；不得为让新目标通过而修改权重或放宽示教区域。
+
+五、两台机器和日志
+
+树莓派项目：/home/dachuang/dachuang/track；原有虚拟环境 /home/dachuang/dachuang/.venv。
+car1.0 项目：/home/dachuang/dachuang/car1.0；寻物环境 .venv-pi。
+3090 项目：/home/sjtu/track；模型环境 /home/sjtu/3090/.venv。
+网页：http://192.168.55.33:8030/。Pi 网页桥接监听 8780，3090 经回环反向隧道 18780 访问，Qwen 搜索/识别服务按发布包设置 8010/8011，追踪 8021，机械臂服务 8020/8080。
+地图寻物：car1.0/search_runs/ble_scene_17/时间戳/mission.json、observations/、phase1_verified_handoff.json。
+网页桥接：track/final_work/logs/；追踪：track/logs/pursuit/；示教区微调：track/logs/hull_align/；模型：grab_visual/logs/。
+上次独立追踪加夹取日志 20260929_114748_visual_pursuit.log 显示追踪、微调、模型动作到 done，但 physical_pick_verified=false；只能证明动作序列结束，实物是否抓住仍需核验。
+
+六、使用和验收
+
+树莓派网页桥接与反向隧道现由 `final-work-pi-bridge.service`、`final-work-pi-tunnel.service` 开机自启，源配置位于本发布包 `track_web_integration/pi/systemd/`。检查：`systemctl status final-work-pi-bridge.service final-work-pi-tunnel.service --no-pager`；健康检查：`curl http://127.0.0.1:8780/health`。3090 网页仍由其自身服务提供；若未运行，可在3090执行 `cd /home/sjtu/track && bash final_work/run_3090_background.sh`。启动网页服务本身不执行任务。实车运行前检查电源、雷达、双摄、蓝牙、玻璃墙与前方通道；现场人员可以急停。网页输入“去柜子边上夹取一个红色的小物块”，检查计划含“地图寻物、视觉追踪、模型夹取、抓取核验”，再确认并自动推进。仅在现场允许运动时执行；不要用旧 car1.0 手动寻物命令与网页任务同时运行。
+
+软件验收：
+  python -m unittest grasp_range_integration.tests.test_phase1_pursuit_entry_contract grasp_range_integration.tests.test_phase1_verified_search grasp_range_integration.tests.test_phase1_observation_recovery grasp_range_integration.tests.test_track_web_phase1_pick -q
+  python -m py_compile grasp_range_integration/phase1/pursuit_entry_contract.py grasp_range_integration/phase1/verified_search.py grasp_range_integration/track_web_integration/pi/robot_bridge.py
+上述不会调用模型 API、启动摄像头或让车运动。集成部署工具：grasp_range_integration/tools/deploy_track_web_pick.py；会核对远端原文件哈希、检查无实车任务、备份后仅替换三个 final_work 编排适配文件，不改地图、权重和底层控制。car1.0 发布包由既有 deploy_phase1_observation.py 部署。服务需重启后才加载新 Python 代码，部署工具自身不重启服务。
+
+已知边界：目前自动链能够“规划地点→寻物确认→视觉接近→示教区微调→执行模型夹取动作”，但最后实物抓取成功需人在网页确认；抓取后搬运/放置不在本轮范围。其他物品可用目标描述重新识别中心，但应逐类实测尺寸和抓取高度，不能把红块模型的训练误差当成通用成功保证。

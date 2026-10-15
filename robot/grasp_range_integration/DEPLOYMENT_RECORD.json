@@ -1,0 +1,25 @@
+{
+  "deployed_at": "2026-10-03 20:56:28",
+  "release": "/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919",
+  "backup": "/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/deployment_backups/observation_20261003_205614",
+  "sha256": {
+    "grasp_range_integration/phase1/rotation_guard.py": "17ac235287a56cf267dea1387b3e55469b16b05660bf2bbb179a2507d6d3f20d",
+    "grasp_range_integration/tests/test_phase1_body_occlusion.py": "ace1fbf4305dd012de0dbabc4490f2c6708130f3637dc45c7b768907c544c4d0",
+    "grasp_range_integration/tests/test_phase1_navigation_rotation_support.py": "7ce2f30cc26c104ed9e07d73872a318ed052f8b45bb18f578e37d23fe7cc8c99",
+    "grasp_range_integration/tests/fixtures/body_occlusion_20261003.json": "3ec991e48d817b90e031c501c283e73101713bf477001a02face0a63672d87b3",
+    "grasp_range_integration/docs/body_occlusion_20261003.md": "269c4839143c28131276c42260233536a2b95fe67a438b68906a585a6dea3708"
+  },
+  "protected_sha256": {
+    "raspberry_pi/object_search_mission.py": "f23d38d864b4e68ebd74d1ecb98960d31ea7ac8d49a3b4884e029506c05e5d97",
+    "raspberry_pi/map_camera_inspection.py": "8aafac60ae515080ba841fc8f4679e7085a68c600c4381cdd912f76055ee4cfb",
+    "raspberry_pi/known_map_navigation.py": "1db527b8b38d7cb2321cfc43202ee40e221f5d82de992ba422661faf03c21e77",
+    "raspberry_pi/esp32/client.py": "d5b589026b4ad671464b233c704faa6e13626ac2f29db20310d673f9ec77cb85",
+    "raspberry_pi/mapping/adaptive_speed.py": "0f9615ad7b538ac89ea3844a97710d1c1a977f7c1453b7084531c07436d46f2d",
+    "raspberry_pi/mapping/scan_matcher.py": "05ef6e5e19205e573a3673a02647d2263f72566b83351a04121289c03d05d545",
+    "ble_scene_17_relationship_20260919/deepseek_visual_localization.py": "bc35271c52beadc15a27f747726520e5cd64119de86ce2aa63d6770a7b52b97a",
+    "ble_scene_17_relationship_20260919/relationship_localization_guard.py": "c726cb975907e7b77a1eba5a6cd98773b0cf3f784af61af5efa39576d0d27278"
+  },
+  "hardware_started": false,
+  "tests_run": true,
+  "tests_passed": true
+}

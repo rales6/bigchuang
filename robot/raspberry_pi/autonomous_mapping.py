@@ -1,0 +1,1448 @@
+"""基于 ESP32 BLE 控制链路的前向 160°自主建图。
+
+程序先检查 BLE 心跳，再启动雷达。车辆先原地慢速扫描一圈，随后使用栅格前沿
+探索可达未知区域。完整 360° 扫描只用于定位历史，前向限距扇区才写入地图。
+每条运动命令均带短 TTL，不启动后台无限续期。
+"""
+
+import argparse
+from collections import Counter
+import math
+import signal
+import time
+
+from raspberry_pi.config import LidarConfig, MappingConfig, SerialConfig
+from raspberry_pi.esp32 import Esp32Client, LinkError
+from raspberry_pi.lidar import N10LidarDriver
+from raspberry_pi.realtime_map import RealtimeMapServer
+from raspberry_pi.mapping import (
+    AdaptiveSpeedConfig,
+    AdaptiveSpeedController,
+    ExplorationConfig,
+    FrontierExplorer,
+    LidarSlam,
+    MotionCommand,
+    filter_scan_sector,
+)
+
+
+def build_argument_parser():
+    parser = argparse.ArgumentParser(
+        description="car1.0 BLE + 全帧定位/前向 160° N10 自主建图"
+    )
+    parser.add_argument(
+        "--enable-motion",
+        action="store_true",
+        help="必须显式给出才允许车辆运动",
+    )
+    parser.add_argument(
+        "--link",
+        choices=("usb", "ble", "uart", "auto"),
+        default="ble",
+        help="实车默认使用 BLE；USB/UART 只作为显式诊断备用链路",
+    )
+    parser.add_argument("--ble-name", default="ESP32-Robot-Car")
+    parser.add_argument("--ble-address", default=None)
+    parser.add_argument(
+        "--ble-connect-timeout",
+        type=float,
+        default=6.0,
+        help="BLE scan and connection timeout in seconds",
+    )
+    parser.add_argument(
+        "--ble-operation-timeout",
+        type=float,
+        default=0.8,
+        help="maximum time for one BLE GATT write in seconds",
+    )
+    parser.add_argument(
+        "--link-request-timeout",
+        type=float,
+        default=0.40,
+        help="response timeout for one protocol request in seconds",
+    )
+    parser.add_argument(
+        "--link-request-retries",
+        type=int,
+        default=1,
+        help="number of protocol retries after a timeout",
+    )
+    parser.add_argument(
+        "--esp-port",
+        default="/dev/serial0",
+        help="仅在 --link usb/uart/auto 时使用的串口设备",
+    )
+    parser.add_argument(
+        "--usb-open-settle",
+        type=float,
+        default=1.5,
+        help="打开 ESP32 USB 串口后等待固件启动的秒数",
+    )
+    parser.add_argument("--lidar-port", default="/dev/ttyACM0")
+    parser.add_argument("--lidar-baud", type=int, default=230400)
+    parser.add_argument("--counterclockwise", action="store_true")
+    parser.add_argument("--angle-offset", type=float, default=0.0)
+    parser.add_argument("--no-motor-control", action="store_true")
+
+    parser.add_argument(
+        "--front-center",
+        type=float,
+        default=0.0,
+        help="有效扇区中心相对车头角度，向左为正",
+    )
+    parser.add_argument(
+        "--usable-fov",
+        type=float,
+        default=160.0,
+        help="写地图和避障使用的前向视场角；定位始终使用完整扫描",
+    )
+    parser.add_argument("--resolution", type=float, default=0.05)
+    parser.add_argument("--map-size", type=float, default=20.0)
+    parser.add_argument(
+        "--mapping-max-distance",
+        type=float,
+        default=6.0,
+        help="写入黑色障碍边界的最远距离；更远回波只清空到此距离，单位 m",
+    )
+    parser.add_argument(
+        "--wall-gap-max",
+        type=float,
+        default=0.0,
+        help="导出地图中允许拼接的黑色墙线最大短缺口，单位 m",
+    )
+    parser.add_argument(
+        "--stationary-map-distance",
+        type=float,
+        default=0.40,
+        help="distance between stopped mapping observation poses in metres",
+    )
+    parser.add_argument(
+        "--stationary-map-angle",
+        type=float,
+        default=30.0,
+        help="heading change between stopped mapping observations in degrees",
+    )
+    parser.add_argument(
+        "--stationary-settle-scans",
+        type=int,
+        default=2,
+        help="scans discarded after stopping before map sampling",
+    )
+    parser.add_argument(
+        "--stationary-fusion-scans",
+        type=int,
+        default=5,
+        help="stable scans fused into one mapping keyframe",
+    )
+    parser.add_argument(
+        "--stationary-min-support",
+        type=int,
+        default=3,
+        help="independent scans required to retain one angular return",
+    )
+    parser.add_argument(
+        "--stationary-range-tolerance",
+        type=float,
+        default=0.10,
+        help="maximum range disagreement when fusing scans in metres",
+    )
+    parser.add_argument(
+        "--map-min-speed",
+        type=float,
+        default=0.025,
+        help="低于该实际平移速度时只定位、不写地图，单位 m/s",
+    )
+    parser.add_argument(
+        "--map-max-speed",
+        type=float,
+        default=0.30,
+        help="高于该实际平移速度时只定位、不写地图，单位 m/s",
+    )
+    parser.add_argument(
+        "--map-max-turn-rate",
+        type=float,
+        default=0.65,
+        help="高于该实际角速度时只定位、不写地图，单位 rad/s",
+    )
+    parser.add_argument(
+        "--turn-max-translation",
+        type=float,
+        default=0.08,
+        help="雷达判定正在转向时允许的最大单帧平移，单位 m",
+    )
+    parser.add_argument(
+        "--manhattan",
+        action="store_true",
+        help="deprecated compatibility flag; wall-axis correction is on by default",
+    )
+    parser.add_argument(
+        "--no-manhattan",
+        action="store_true",
+        help="disable rectangular-room wall-axis yaw correction",
+    )
+    parser.add_argument(
+        "--min-obstacle-area",
+        type=float,
+        default=0.01,
+        help="小于该连通面积的障碍点块不进入规划和地图，单位 m^2",
+    )
+    parser.add_argument("--output", default="maps/ble_auto_map")
+    parser.add_argument("--save-every", type=int, default=0)
+    parser.add_argument(
+        "--live-map",
+        action="store_true",
+        help="启动树莓派实时 LidarSlam 地图监控网页",
+    )
+    parser.add_argument(
+        "--live-map-bind",
+        default="0.0.0.0",
+        help="实时地图监听地址；0.0.0.0 允许局域网设备访问",
+    )
+    parser.add_argument(
+        "--live-map-port",
+        type=int,
+        default=8766,
+        help="实时地图 HTTP 端口",
+    )
+    parser.add_argument(
+        "--live-map-refresh-hz",
+        type=float,
+        default=2.0,
+        help="实时地图 PNG 刷新频率，建议 1..3 Hz",
+    )
+
+    parser.add_argument("--speed", type=int, default=250, help="巡航速度 mm/s")
+    parser.add_argument(
+        "--max-drive-speed",
+        type=int,
+        default=460,
+        help="检测到直行堵转或执行脱困时允许提升到的速度上限 mm/s",
+    )
+    parser.add_argument(
+        "--front-left-gain",
+        type=float,
+        default=1.15,
+        help="树莓派下发的左前轮输出倍率",
+    )
+    parser.add_argument(
+        "--front-right-gain",
+        type=float,
+        default=1.00,
+        help="树莓派下发的右前轮输出倍率",
+    )
+    parser.add_argument(
+        "--rear-left-gain",
+        type=float,
+        default=0.90,
+        help="树莓派下发的左后轮输出倍率；空转时应适当降低",
+    )
+    parser.add_argument(
+        "--rear-right-gain",
+        type=float,
+        default=1.00,
+        help="树莓派下发的右后轮输出倍率",
+    )
+    parser.add_argument("--slow-speed", type=int, default=220)
+    parser.add_argument(
+        "--measured-speed-min",
+        type=float,
+        default=0.075,
+        help="雷达定位测得速度低于此值时逐步增大驱动，单位 m/s",
+    )
+    parser.add_argument(
+        "--measured-speed-max",
+        type=float,
+        default=0.22,
+        help="雷达定位测得速度高于此值时逐步减小驱动，单位 m/s",
+    )
+    parser.add_argument(
+        "--measured-turn-min",
+        type=float,
+        default=0.12,
+        help="雷达定位测得角速度低于此值时逐步增大转向驱动，单位 rad/s",
+    )
+    parser.add_argument(
+        "--measured-turn-max",
+        type=float,
+        default=0.85,
+        help="雷达定位测得角速度高于此值时逐步减小转向驱动，单位 rad/s",
+    )
+    parser.add_argument(
+        "--turn-speed",
+        type=int,
+        default=1500,
+        help="正常转向速度 mrad/s",
+    )
+    parser.add_argument(
+        "--max-turn-speed",
+        type=int,
+        default=3000,
+        help="检测到转向堵转时允许逐级提高到的角速度上限 mrad/s",
+    )
+    parser.add_argument(
+        "--turn-arc-speed",
+        type=int,
+        default=260,
+        help="用小半径弧线代替长时间原地旋转时的前进速度",
+    )
+    parser.add_argument(
+        "--narrow-passage-width",
+        type=float,
+        default=0.95,
+        help="左右受支持墙面间距低于此值时启用窄通道控制，单位 m",
+    )
+    parser.add_argument(
+        "--narrow-speed",
+        type=int,
+        default=240,
+        help="窄通道内的基础前进速度 mm/s",
+    )
+    parser.add_argument(
+        "--narrow-turn-speed",
+        type=int,
+        default=1900,
+        help="窄通道内原地对正的角速度上限 mrad/s",
+    )
+    parser.add_argument("--stop-distance", type=float, default=0.40)
+    parser.add_argument("--slow-distance", type=float, default=0.75)
+    parser.add_argument(
+        "--clearance",
+        type=float,
+        default=0.25,
+        help="障碍膨胀半径，应不小于车体中心到最外缘的距离",
+    )
+    parser.add_argument("--robot-length", type=float, default=0.35)
+    parser.add_argument("--robot-width", type=float, default=0.24)
+    parser.add_argument("--lidar-offset-x", type=float, default=0.14)
+    parser.add_argument("--lidar-offset-y", type=float, default=0.0)
+    parser.add_argument("--safety-margin", type=float, default=0.04)
+    parser.add_argument("--max-runtime-min", type=float, default=15.0)
+    parser.add_argument("--max-rejected-scans", type=int, default=3)
+    parser.add_argument(
+        "--command-ttl-ms",
+        type=int,
+        default=700,
+        help="雷达停止更新后 ESP32 自动停车的最长命令有效期",
+    )
+    parser.add_argument(
+        "--command-min-interval-ms",
+        type=int,
+        default=450,
+        help="相同方向运动命令的最短发送间隔，降低通信负载",
+    )
+    parser.add_argument(
+        "--link-reconnect-attempts",
+        type=int,
+        default=8,
+        help="运动命令超时后的链路重连次数",
+    )
+    parser.add_argument(
+        "--link-reconnect-delay",
+        type=float,
+        default=0.25,
+        help="每次重连前等待秒数",
+    )
+    parser.add_argument(
+        "--link-reconnect-rounds",
+        type=int,
+        default=0,
+        help="整轮重连次数；0 表示停车保图并持续等待，直到恢复或 Ctrl+C",
+    )
+    parser.add_argument(
+        "--reconnect-discard-scans",
+        type=int,
+        default=2,
+        help="重连后丢弃的积压雷达帧数",
+    )
+    parser.add_argument(
+        "--reconnect-stabilize-scans",
+        type=int,
+        default=1,
+        help="重连并停车后用于稳定和全局重定位的雷达帧数",
+    )
+    parser.add_argument(
+        "--reconnect-map-hold-scans",
+        type=int,
+        default=8,
+        help="重定位后只定位、不写地图的有效雷达帧数",
+    )
+    return parser
+
+
+class ActiveRuntimeBudget:
+    """Track active exploration time while excluding reconnect pauses."""
+
+    def __init__(self, maximum_s, clock=None):
+        self.maximum_s = max(0.0, float(maximum_s))
+        self._clock = clock or time.monotonic
+        self._started_s = self._clock()
+        self._paused_total_s = 0.0
+        self._pause_started_s = None
+
+    def pause(self):
+        if self._pause_started_s is None:
+            self._pause_started_s = self._clock()
+
+    def resume(self):
+        if self._pause_started_s is None:
+            return
+        self._paused_total_s += self._clock() - self._pause_started_s
+        self._pause_started_s = None
+
+    @property
+    def elapsed_s(self):
+        now_s = self._clock()
+        active_pause_s = (
+            0.0
+            if self._pause_started_s is None
+            else now_s - self._pause_started_s
+        )
+        return max(
+            0.0,
+            now_s
+            - self._started_s
+            - self._paused_total_s
+            - active_pause_s,
+        )
+
+    @property
+    def paused_s(self):
+        now_s = self._clock()
+        active_pause_s = (
+            0.0
+            if self._pause_started_s is None
+            else now_s - self._pause_started_s
+        )
+        return self._paused_total_s + active_pause_s
+
+    def expired(self):
+        return self.elapsed_s >= self.maximum_s
+
+
+class MotionCommandScheduler:
+    """限制命令频率，同时让停车和运动方向变化立即生效。"""
+
+    def __init__(self, minimum_interval_ms=300, clock=None):
+        self.minimum_interval_s = max(
+            0.0, float(minimum_interval_ms) / 1000.0
+        )
+        self._clock = clock or time.monotonic
+        self.last_command = None
+        self.last_sent_s = None
+
+    def should_send(self, command, ttl_ms, now_s=None):
+        now_s = self._clock() if now_s is None else float(now_s)
+        current = (
+            int(command.linear_mm_s),
+            int(command.angular_mrad_s),
+            int(ttl_ms),
+        )
+        if self.last_command is None:
+            return True
+        previous = self.last_command
+        if current[0] == 0 and current[1] == 0:
+            return current != previous
+        if _motion_direction(current[0]) != _motion_direction(previous[0]):
+            return True
+        if _motion_direction(current[1]) != _motion_direction(previous[1]):
+            return True
+        return (
+            self.last_sent_s is None
+            or now_s - self.last_sent_s >= self.minimum_interval_s
+        )
+
+    def mark_sent(self, command, ttl_ms, now_s=None):
+        self.last_command = (
+            int(command.linear_mm_s),
+            int(command.angular_mrad_s),
+            int(ttl_ms),
+        )
+        self.last_sent_s = (
+            self._clock() if now_s is None else float(now_s)
+        )
+
+    def is_motion_refresh(self, command):
+        """Return true when only TTL/metadata changed, not wheel motion.
+
+        Adaptive turn control may change TTL in 50 ms steps while keeping the
+        exact same linear and angular request.  Requiring a BLE ACK for those
+        TTL-only changes recreated notification congestion even though the
+        chassis motion was unchanged.
+        """
+        if self.last_command is None:
+            return False
+        return self.last_command[:2] == (
+            int(command.linear_mm_s),
+            int(command.angular_mrad_s),
+        )
+
+    def reset(self):
+        self.last_command = None
+        self.last_sent_s = None
+
+
+def _motion_direction(value):
+    return 0 if value == 0 else (1 if value > 0 else -1)
+
+
+def reconnect_client(factory, old_client, attempts, delay_s):
+    """关闭失效客户端并建立新链路；新连接先心跳再硬停车。"""
+    try:
+        old_client.close(send_cancel=False)
+    except TypeError:
+        old_client.close()
+    except Exception:
+        pass
+    last_error = None
+    for attempt in range(1, int(attempts) + 1):
+        # Give BlueZ and the ESP32 disconnect IRQ time to release the old
+        # connection before asking for services again.  A short exponential
+        # backoff avoids keeping both sides in a half-connected loop.
+        retry_delay_s = max(
+            0.75,
+            float(delay_s) * min(8, 2 ** (attempt - 1)),
+        )
+        time.sleep(retry_delay_s)
+        candidate = None
+        try:
+            candidate = factory()
+            candidate.heartbeat()
+            candidate.stop()
+            print(
+                "链路重连成功 {}/{}：当前链路={}".format(
+                    attempt,
+                    attempts,
+                    candidate.active_transport,
+                )
+            )
+            return candidate
+        except Exception as exc:
+            last_error = exc
+            print("链路重连失败 {}/{}：{}".format(
+                attempt, attempts, exc
+            ))
+            if candidate is not None:
+                try:
+                    candidate.close(send_cancel=False)
+                except TypeError:
+                    candidate.close()
+                except Exception:
+                    pass
+    raise RuntimeError(
+        "链路连续重连失败 {} 次：{}".format(attempts, last_error)
+    )
+
+
+def reconnect_client_persistently(
+    factory,
+    old_client,
+    attempts,
+    delay_s,
+    maximum_rounds=0,
+    stop_requested=None,
+):
+    """按轮重连；maximum_rounds=0 时持续等待链路恢复。"""
+    reconnect_round = 0
+    current_client = old_client
+    while stop_requested is None or not stop_requested():
+        try:
+            return reconnect_client(
+                factory,
+                current_client,
+                attempts,
+                delay_s,
+            )
+        except RuntimeError:
+            reconnect_round += 1
+            finite_limit_reached = (
+                int(maximum_rounds) > 0
+                and reconnect_round >= int(maximum_rounds)
+            )
+            if finite_limit_reached:
+                raise
+            print(
+                "第 {} 轮通信链路重连仍未恢复；车辆保持 TTL 停车，"
+                "地图和探索计时不会推进，2 秒后继续。".format(
+                    reconnect_round
+                )
+            )
+            time.sleep(2.0)
+            current_client = None
+    raise RuntimeError("用户在等待通信链路恢复时停止任务")
+
+
+def validate_args(args, parser=None):
+    errors = []
+    if not args.enable_motion:
+        errors.append("必须添加 --enable-motion 才允许自主行驶")
+    if not 30.0 <= args.usable_fov <= 180.0:
+        errors.append("--usable-fov 必须在 30..180 度之间")
+    if not 50 <= args.speed <= 500:
+        errors.append("--speed 必须在 50..500 mm/s 之间")
+    if not args.speed <= args.max_drive_speed <= 500:
+        errors.append(
+            "--max-drive-speed 必须在 --speed..500 mm/s 之间"
+        )
+    wheel_gains = (
+        args.front_left_gain,
+        args.front_right_gain,
+        args.rear_left_gain,
+        args.rear_right_gain,
+    )
+    if any(value < 0.50 or value > 1.50 for value in wheel_gains):
+        errors.append("四个轮输出倍率必须都在 0.50..1.50 之间")
+    if not 30 <= args.slow_speed <= args.speed:
+        errors.append("--slow-speed 必须在 30..speed mm/s 之间")
+    if not 0.01 <= args.measured_speed_min < args.measured_speed_max <= 0.50:
+        errors.append(
+            "必须满足 0.01 <= --measured-speed-min "
+            "< --measured-speed-max <= 0.50 m/s"
+        )
+    if not 0.02 <= args.measured_turn_min < args.measured_turn_max <= 3.0:
+        errors.append(
+            "必须满足 0.02 <= --measured-turn-min "
+            "< --measured-turn-max <= 3.0 rad/s"
+        )
+    if not 300 <= args.turn_speed <= 3500:
+        errors.append("--turn-speed 必须在 300..3500 mrad/s 之间")
+    if not args.turn_speed <= args.max_turn_speed <= 3500:
+        errors.append(
+            "--max-turn-speed 必须在 --turn-speed..3500 mrad/s 之间"
+        )
+    if not 80 <= args.turn_arc_speed <= 500:
+        errors.append("--turn-arc-speed 必须在 80..500 mm/s 之间")
+    if not 0.50 <= args.narrow_passage_width <= 1.50:
+        errors.append("--narrow-passage-width 必须在 0.50..1.50 m 之间")
+    if not 220 <= args.narrow_speed <= args.speed:
+        errors.append("--narrow-speed 必须在 220..--speed mm/s 之间")
+    if not 1500 <= args.narrow_turn_speed <= args.max_turn_speed:
+        errors.append(
+            "--narrow-turn-speed 必须在 1500..--max-turn-speed mrad/s 之间"
+        )
+    if not 0.20 <= args.stop_distance < args.slow_distance:
+        errors.append("必须满足 0.20 <= --stop-distance < --slow-distance")
+    if not 0.15 <= args.clearance <= 1.0:
+        errors.append("--clearance 必须在 0.15..1.0 米之间")
+    if not 0.20 <= args.robot_length <= 1.0:
+        errors.append("--robot-length must be in 0.20..1.0 m")
+    if not 0.15 <= args.robot_width <= 1.0:
+        errors.append("--robot-width must be in 0.15..1.0 m")
+    if not -0.5 <= args.lidar_offset_x <= 0.5:
+        errors.append("--lidar-offset-x must be in -0.5..0.5 m")
+    if not -0.5 <= args.lidar_offset_y <= 0.5:
+        errors.append("--lidar-offset-y must be in -0.5..0.5 m")
+    if not 0.0 <= args.safety_margin <= 0.30:
+        errors.append("--safety-margin must be in 0..0.30 m")
+    if not 200 <= args.command_ttl_ms <= 700:
+        errors.append("--command-ttl-ms 必须在 200..700 ms 之间")
+    if not 100 <= args.command_min_interval_ms <= 500:
+        errors.append("--command-min-interval-ms 必须在 100..500 ms 之间")
+    if not 1 <= args.link_reconnect_attempts <= 10:
+        errors.append("--link-reconnect-attempts 必须在 1..10 之间")
+    if not 0.1 <= args.link_reconnect_delay <= 10.0:
+        errors.append("--link-reconnect-delay 必须在 0.1..10 秒之间")
+    if not 0 <= args.link_reconnect_rounds <= 100:
+        errors.append("--link-reconnect-rounds 必须在 0..100 之间；0 表示持续等待")
+    if not 3.0 <= args.ble_connect_timeout <= 30.0:
+        errors.append("--ble-connect-timeout 必须在 3..30 秒之间")
+    if not 0.3 <= args.ble_operation_timeout <= 3.0:
+        errors.append("--ble-operation-timeout 必须在 0.3..3 秒之间")
+    if not 0.5 <= args.usb_open_settle <= 5.0:
+        errors.append("--usb-open-settle 必须在 0.5..5.0 秒之间")
+    if (
+        args.link in ("usb", "uart")
+        and args.esp_port != "auto"
+        and args.esp_port == args.lidar_port
+    ):
+        errors.append("ESP32 与雷达不能使用同一个串口设备")
+    if not 0.2 <= args.link_request_timeout <= 3.0:
+        errors.append("--link-request-timeout 必须在 0.2..3 秒之间")
+    if not 0 <= args.link_request_retries <= 8:
+        errors.append("--link-request-retries 必须在 0..8 之间")
+    if not 0 <= args.reconnect_discard_scans <= 10:
+        errors.append("--reconnect-discard-scans 必须在 0..10 之间")
+    if not 0 <= args.reconnect_stabilize_scans <= 20:
+        errors.append("--reconnect-stabilize-scans 必须在 0..20 之间")
+    if not 0 <= args.reconnect_map_hold_scans <= 50:
+        errors.append("--reconnect-map-hold-scans 必须在 0..50 之间")
+    if not 0.02 <= args.resolution <= 0.20:
+        errors.append("--resolution 必须在 0.02..0.20 米之间")
+    if not 3.0 <= args.map_size <= 100.0:
+        errors.append("--map-size 必须在 3..100 米之间")
+    if not 0.30 <= args.mapping_max_distance <= 8.0:
+        errors.append("--mapping-max-distance 必须在 0.30..8.0 米之间")
+    if not 0.0 <= args.wall_gap_max <= 0.50:
+        errors.append("--wall-gap-max 必须在 0..0.50 米之间")
+    if not 0.10 <= args.stationary_map_distance <= 2.0:
+        errors.append(
+            "--stationary-map-distance must be in 0.10..2.0 m"
+        )
+    if not 5.0 <= args.stationary_map_angle <= 90.0:
+        errors.append(
+            "--stationary-map-angle must be in 5..90 degrees"
+        )
+    if not 0 <= args.stationary_settle_scans <= 10:
+        errors.append("--stationary-settle-scans must be in 0..10")
+    if not 3 <= args.stationary_fusion_scans <= 15:
+        errors.append("--stationary-fusion-scans must be in 3..15")
+    if not (
+        2 <= args.stationary_min_support
+        <= args.stationary_fusion_scans
+    ):
+        errors.append(
+            "--stationary-min-support must be in "
+            "2..stationary-fusion-scans"
+        )
+    if not 0.02 <= args.stationary_range_tolerance <= 0.50:
+        errors.append(
+            "--stationary-range-tolerance must be in 0.02..0.50 m"
+        )
+    if not 0.0 <= args.map_min_speed < args.map_max_speed:
+        errors.append("必须满足 0 <= --map-min-speed < --map-max-speed")
+    if not 0.05 <= args.map_max_speed <= 1.0:
+        errors.append("--map-max-speed 必须在 0.05..1.0 m/s 之间")
+    if not 0.1 <= args.map_max_turn_rate <= 5.0:
+        errors.append("--map-max-turn-rate 必须在 0.1..5.0 rad/s 之间")
+    if not 0.03 <= args.turn_max_translation <= 0.12:
+        errors.append("--turn-max-translation 必须在 0.03..0.12 m 之间")
+    if not 0.0 <= args.min_obstacle_area <= 0.50:
+        errors.append("--min-obstacle-area 必须在 0..0.50 m^2 之间")
+    if args.max_runtime_min <= 0:
+        errors.append("--max-runtime-min 必须大于 0")
+    if not 1 <= args.live_map_port <= 65535:
+        errors.append("--live-map-port 必须在 1..65535 之间")
+    if not 0.2 <= args.live_map_refresh_hz <= 10.0:
+        errors.append("--live-map-refresh-hz 必须在 0.2..10.0 Hz 之间")
+    if errors:
+        message = "；".join(errors)
+        if parser is not None:
+            parser.error(message)
+        raise ValueError(message)
+
+
+def run(
+    args,
+    client=None,
+    lidar=None,
+    client_factory=None,
+    live_map_server=None,
+    clock=None,
+):
+    """运行自主建图；可注入 client/lidar 以进行无硬件集成测试。"""
+    validate_args(args)
+    cells = int(round(args.map_size / args.resolution))
+    lidar_config = LidarConfig(
+        port=args.lidar_port,
+        baudrate=args.lidar_baud,
+        angle_offset_deg=args.angle_offset,
+        clockwise=not args.counterclockwise,
+        motor_control=not args.no_motor_control,
+    )
+    slam = LidarSlam(
+        MappingConfig(
+            resolution_m=args.resolution,
+            width_cells=cells,
+            height_cells=cells,
+            lidar_offset_x_m=args.lidar_offset_x,
+            lidar_offset_y_m=args.lidar_offset_y,
+            mapping_max_distance_m=args.mapping_max_distance,
+            render_wall_gap_max_m=args.wall_gap_max,
+            stationary_map_translation_m=(
+                args.stationary_map_distance
+            ),
+            stationary_map_rotation_deg=args.stationary_map_angle,
+            stationary_map_settle_scans=args.stationary_settle_scans,
+            stationary_map_fusion_scans=args.stationary_fusion_scans,
+            stationary_map_min_support_scans=(
+                args.stationary_min_support
+            ),
+            stationary_map_range_tolerance_m=(
+                args.stationary_range_tolerance
+            ),
+            map_min_linear_speed_m_s=args.map_min_speed,
+            map_max_linear_speed_m_s=args.map_max_speed,
+            map_max_angular_speed_rad_s=args.map_max_turn_rate,
+            lidar_turn_max_translation_m=args.turn_max_translation,
+            manhattan_enabled=not args.no_manhattan,
+            min_obstacle_area_m2=args.min_obstacle_area,
+        ),
+        lidar_config,
+    )
+    explorer = FrontierExplorer(ExplorationConfig(
+        cruise_speed_mm_s=args.speed,
+        slow_speed_mm_s=args.slow_speed,
+        turn_speed_mrad_s=args.turn_speed,
+        turn_arc_speed_mm_s=args.turn_arc_speed,
+        narrow_passage_width_m=args.narrow_passage_width,
+        narrow_passage_speed_mm_s=args.narrow_speed,
+        narrow_passage_turn_speed_mrad_s=args.narrow_turn_speed,
+        stop_distance_m=args.stop_distance,
+        slow_distance_m=args.slow_distance,
+        robot_clearance_m=args.clearance,
+        robot_length_m=args.robot_length,
+        robot_width_m=args.robot_width,
+        lidar_offset_x_m=args.lidar_offset_x,
+        lidar_offset_y_m=args.lidar_offset_y,
+        safety_margin_m=args.safety_margin,
+    ))
+    speed_controller = AdaptiveSpeedController(
+        args.max_turn_speed,
+        maximum_linear_speed_mm_s=args.max_drive_speed,
+        config=AdaptiveSpeedConfig(
+            target_linear_speed_min_m_s=args.measured_speed_min,
+            target_linear_speed_max_m_s=args.measured_speed_max,
+            target_angular_speed_min_rad_s=args.measured_turn_min,
+            target_angular_speed_max_rad_s=args.measured_turn_max,
+            maximum_narrow_passage_linear_speed_mm_s=min(
+                args.max_drive_speed,
+                # Keep the requested narrow-passage speed while the car is
+                # moving normally, but leave enough headroom for the learned
+                # stall boost to cross the chassis' static-friction dead
+                # zone.  The previous +40 cap meant a 240 mm/s narrow command
+                # could never exceed 280 mm/s, even after repeated confirmed
+                # zero-motion frames.
+                args.narrow_speed
+                + AdaptiveSpeedConfig.maximum_linear_boost_mm_s,
+            ),
+            maximum_narrow_passage_turn_mrad_s=args.narrow_turn_speed,
+            maximum_narrow_passage_stall_turn_mrad_s=(
+                args.max_turn_speed
+            ),
+        ),
+    )
+    serial_config = SerialConfig(
+        port=args.esp_port,
+        link_mode=args.link,
+        ble_device_name=args.ble_name,
+        ble_address=args.ble_address,
+        request_timeout_s=args.link_request_timeout,
+        retries=args.link_request_retries,
+        usb_boot_settle_s=args.usb_open_settle,
+        ble_connect_timeout_s=args.ble_connect_timeout,
+        ble_operation_timeout_s=args.ble_operation_timeout,
+        wheel_output_gains=(
+            args.front_left_gain,
+            args.front_right_gain,
+            args.rear_left_gain,
+            args.rear_right_gain,
+        ),
+    )
+    injected_client = client is not None
+    client_factory = client_factory or (
+        None if injected_client else lambda: Esp32Client(serial_config)
+    )
+    if client is None:
+        try:
+            client = client_factory()
+        except Exception as exc:
+            print(
+                "首次 BLE/通信客户端创建失败，进入持续重连：{}".format(
+                    exc
+                )
+            )
+            client = reconnect_client_persistently(
+                client_factory,
+                None,
+                args.link_reconnect_attempts,
+                args.link_reconnect_delay,
+                args.link_reconnect_rounds,
+            )
+    command_scheduler = MotionCommandScheduler(
+        args.command_min_interval_ms,
+        clock=clock,
+    )
+
+    stopping = False
+    motion_started = False
+    accepted_count = 0
+    rejected_count = 0
+    total_scan_count = 0
+    total_rejected_count = 0
+    rejection_reason_counts = Counter()
+    relocalization_count = 0
+    paths = None
+    runtime_budget = None
+    last_update = None
+    last_command = None
+    stationary_mapping = True
+
+    def publish_live_map(
+        update,
+        command=None,
+        *,
+        state=None,
+        reason=None,
+        running=True,
+        force=False,
+    ):
+        nonlocal live_map_server
+        if live_map_server is None or update is None:
+            return
+        command_status = {
+            "state": (
+                state
+                or getattr(command, "state", None)
+                or "localizing"
+            ),
+            "reason": (
+                reason
+                or getattr(command, "reason", None)
+                or ""
+            ),
+            "linear_mm_s": int(
+                getattr(command, "linear_mm_s", 0)
+            ),
+            "angular_mrad_s": int(
+                getattr(command, "angular_mrad_s", 0)
+            ),
+            "target_xy_m": getattr(command, "target_xy_m", None),
+        }
+        status = {
+            "running": bool(running),
+            "scan_count": total_scan_count,
+            "accepted_count": accepted_count,
+            "rejected_count": total_rejected_count,
+            "accepted_ratio": (
+                accepted_count / max(1, total_scan_count)
+            ),
+            "accepted": bool(update.accepted),
+            "pose": {
+                "x_m": float(update.pose.x_m),
+                "y_m": float(update.pose.y_m),
+                "yaw_deg": math.degrees(update.pose.yaw_rad),
+            },
+            "rmse_m": (
+                float(update.rmse_m)
+                if math.isfinite(update.rmse_m)
+                else None
+            ),
+            "correspondences": int(update.correspondences),
+            "scan_points": int(update.scan_points),
+            "inlier_ratio": float(update.inlier_ratio),
+            "rejection_reason": update.rejection_reason,
+            "map_status": update.map_status,
+            "linear_speed_m_s": float(update.linear_speed_m_s),
+            "angular_speed_rad_s": float(
+                update.angular_speed_rad_s
+            ),
+            "command": command_status,
+            "mapping": {
+                "integrated_count": int(slam.map_integrated_count),
+                "stationary_fusion_count": int(
+                    slam.stationary_fusion_count
+                ),
+                "stationary_mode": bool(stationary_mapping),
+                "stationary_progress": list(
+                    slam.stationary_mapping_progress
+                ),
+                "skip_counts": dict(slam.map_skip_counts),
+                "global_relocalizations": int(
+                    slam.global_relocalization_count
+                ),
+                "manhattan_corrections": int(
+                    slam.manhattan_correction_count
+                ),
+            },
+            "elapsed_s": (
+                float(runtime_budget.elapsed_s)
+                if runtime_budget is not None
+                else 0.0
+            ),
+        }
+        try:
+            live_map_server.publish(slam, status, force=force)
+        except Exception as exc:
+            print("\n实时地图更新失败，车辆控制继续运行：{}".format(exc))
+            try:
+                live_map_server.stop()
+            finally:
+                live_map_server = None
+
+    def request_stop(_signal_number, _frame):
+        nonlocal stopping
+        stopping = True
+
+    if signal.getsignal(signal.SIGINT) is not None:
+        signal.signal(signal.SIGINT, request_stop)
+        signal.signal(signal.SIGTERM, request_stop)
+
+    try:
+        # BLE 和 ESP32 必须先通过无动作心跳，失败时不启动雷达和电机。
+        try:
+            client.heartbeat()
+        except LinkError as exc:
+            if client_factory is None:
+                raise
+            print(
+                "首次 ESP32 心跳超时，正在重新建立链路：{}".format(
+                    exc
+                )
+            )
+            client = reconnect_client_persistently(
+                client_factory,
+                client,
+                args.link_reconnect_attempts,
+                args.link_reconnect_delay,
+                args.link_reconnect_rounds,
+                lambda: stopping,
+            )
+        print("ESP32 通信通过：当前链路={}".format(client.active_transport))
+        if args.live_map:
+            if live_map_server is None:
+                live_map_server = RealtimeMapServer(
+                    bind=args.live_map_bind,
+                    port=args.live_map_port,
+                    refresh_hz=args.live_map_refresh_hz,
+                )
+            monitor_url = live_map_server.start()
+            print(
+                "实车算法地图监控已启动：{}"
+                "（显示 LidarSlam 估计结果，不使用仿真真值）".format(
+                    monitor_url
+                )
+            )
+        lidar = lidar or N10LidarDriver(lidar_config)
+        max_runtime_s = args.max_runtime_min * 60.0
+        runtime_budget = ActiveRuntimeBudget(max_runtime_s, clock=clock)
+        print(
+            "自主建图已启动：定位使用完整扫描，地图只使用前方 {:.0f}°/"
+            "{:.1f}m；每移动 {:.2f}m 或转向 {:.0f}° 停车，"
+            "稳定后融合 {}/{} 圈；巡航/脱困上限 {}/{} mm/s；"
+            "正常/最大转向 {}/{} mrad/s；"
+            "窄通道阈值 {:.2f}m、直行 {}mm/s、转向 {}mrad/s；"
+            "Ctrl+C 会停车并保存。".format(
+                args.usable_fov,
+                args.mapping_max_distance,
+                args.stationary_map_distance,
+                args.stationary_map_angle,
+                args.stationary_min_support,
+                args.stationary_fusion_scans,
+                args.speed,
+                args.max_drive_speed,
+                args.turn_speed,
+                args.max_turn_speed,
+                args.narrow_passage_width,
+                args.narrow_speed,
+                args.narrow_turn_speed,
+            )
+        )
+
+        scan_iterator = iter(lidar.scans())
+        for raw_scan in scan_iterator:
+            if stopping or runtime_budget.expired():
+                break
+            total_scan_count += 1
+            mapping_scan = filter_scan_sector(
+                raw_scan, args.front_center, args.usable_fov
+            )
+            update = slam.process(
+                raw_scan,
+                mapping_scan=mapping_scan,
+                stationary_mapping=stationary_mapping,
+            )
+            last_update = update
+            speed_controller.observe(update)
+            if not update.accepted:
+                rejected_count += 1
+                total_rejected_count += 1
+                rejection_reason_counts[
+                    update.rejection_reason or "unknown"
+                ] += 1
+                # 不等待连续失败：运动中的第一帧拒绝就立即停车。否则旧命令
+                # 会在 TTL 内继续驱动车辆，使当前帧与参考帧越来越难匹配。
+                if motion_started:
+                    try:
+                        client.stop()
+                    except Exception as exc:
+                        print("\n定位拒绝后的停车告警：{}".format(exc))
+                    motion_started = False
+                    speed_controller.stopped()
+                    command_scheduler.reset()
+                print(
+                    "\n定位拒绝 {}/{}：{} rmse={:.3f}m "
+                    "inliers={:.0f}% delta=({:.3f}m,{:.1f}deg)".format(
+                        rejected_count,
+                        args.max_rejected_scans,
+                        update.rejection_reason or "unknown",
+                        update.rmse_m,
+                        update.inlier_ratio * 100.0,
+                        update.translation_m,
+                        math.degrees(update.rotation_rad),
+                    )
+                )
+                publish_live_map(
+                    update,
+                    state="localization_rejected",
+                    reason=update.rejection_reason or "定位匹配被拒绝",
+                )
+                # Before the first fused map, no drive command has been sent.
+                # A large apparent displacement is an unstable lidar startup
+                # revolution, not vehicle motion. Replace that origin and wait
+                # for a genuinely stable batch instead of exiting immediately.
+                if (
+                    stationary_mapping
+                    and slam.map_integrated_count == 0
+                    and slam.reset_startup_reference(raw_scan)
+                ):
+                    rejected_count = 0
+                    print(
+                        "首张地图尚未形成且车辆未运动；已丢弃不稳定的"
+                        "启动定位基准，继续停车等待稳定雷达帧。"
+                    )
+                    continue
+                if (
+                    rejected_count >= 3
+                    and relocalization_count < 3
+                    and (
+                        slam.relocalize(raw_scan)
+                        or slam.reseed(
+                            raw_scan,
+                            require_motion_recovery=True,
+                        )
+                    )
+                ):
+                    relocalization_count += 1
+                    rejected_count = 0
+                    slam.suspend_mapping(
+                        args.reconnect_map_hold_scans
+                    )
+                    print(
+                        "车辆已停车并恢复定位参考 ({}/3)；"
+                        "随后 {} 帧只定位、不写地图。".format(
+                            relocalization_count,
+                            args.reconnect_map_hold_scans,
+                        )
+                    )
+                    continue
+                if rejected_count >= args.max_rejected_scans:
+                    if motion_started:
+                        client.stop()
+                    raise RuntimeError(
+                        "连续 {} 帧定位失败，已停车；请降低速度或改善雷达视野".format(
+                            rejected_count
+                        )
+                    )
+                continue
+
+            rejected_count = 0
+            relocalization_count = 0
+            accepted_count += 1
+            if stationary_mapping and update.map_integrated:
+                stationary_mapping = False
+                explorer.note_stationary_map_integrated(
+                    update.pose,
+                    slam.grid,
+                )
+            elif (
+                not stationary_mapping
+                and slam.stationary_mapping_due()
+            ):
+                stationary_mapping = True
+
+            if stationary_mapping:
+                speed_controller.stopped()
+                collected, required = slam.stationary_mapping_progress
+                command = MotionCommand(
+                    0,
+                    0,
+                    "stationary_mapping",
+                    "stopped lidar fusion {}/{}".format(
+                        collected,
+                        required,
+                    ),
+                )
+            else:
+                command = explorer.update(
+                    update.pose,
+                    mapping_scan,
+                    slam.grid,
+                )
+                command = speed_controller.apply(command)
+                if command.state == "obstacle_inspection_observe":
+                    # Reaching a table-side viewpoint must force a real fused
+                    # keyframe even when it is less than the normal 0.40 m /
+                    # 30 degree spacing from the previous stop. Merely holding
+                    # two localization-only frames leaves the shadow gray and
+                    # makes the planner select the same corner forever.
+                    stationary_mapping = True
+            last_command = command
+            command_ttl_ms = speed_controller.ttl_for(
+                command,
+                args.command_ttl_ms,
+            )
+            command_sent = False
+            if command_scheduler.should_send(command, command_ttl_ms):
+                try:
+                    refresh_twist = getattr(
+                        client,
+                        "refresh_twist",
+                        None,
+                    )
+                    if (
+                        refresh_twist is not None
+                        and command_scheduler.is_motion_refresh(command)
+                    ):
+                        refresh_twist(
+                            command.linear_mm_s,
+                            command.angular_mrad_s,
+                            ttl_ms=command_ttl_ms,
+                        )
+                    else:
+                        client.set_twist(
+                            command.linear_mm_s,
+                            command.angular_mrad_s,
+                            ttl_ms=command_ttl_ms,
+                        )
+                    command_scheduler.mark_sent(
+                        command, command_ttl_ms
+                    )
+                    command_sent = True
+                except LinkError as exc:
+                    print(
+                        "\n运动命令通信超时，旧命令将在TTL内失效：{}".format(
+                            exc
+                        )
+                    )
+                    publish_live_map(
+                        update,
+                        state="link_reconnecting",
+                        reason=str(exc),
+                    )
+                    motion_started = False
+                    stronger_restart = (
+                        speed_controller.note_link_interruption()
+                    )
+                    command_scheduler.reset()
+                    if client_factory is None:
+                        raise RuntimeError(
+                            "注入的测试客户端没有提供重连工厂"
+                        ) from exc
+                    runtime_budget.pause()
+                    reconnect_failed = None
+                    try:
+                        client = reconnect_client_persistently(
+                            client_factory,
+                            client,
+                            args.link_reconnect_attempts,
+                            args.link_reconnect_delay,
+                            args.link_reconnect_rounds,
+                            lambda: stopping,
+                        )
+                        reset_scan_stream = getattr(
+                            lidar,
+                            "reset_scan_stream",
+                            None,
+                        )
+                        if reset_scan_stream is not None:
+                            reset_scan_stream()
+                            scan_iterator = iter(lidar.scans())
+                            fresh_raw_scan = next(scan_iterator)
+                        else:
+                            fresh_raw_scan = raw_scan
+                        stable_scan_count = (
+                            args.reconnect_discard_scans
+                            + args.reconnect_stabilize_scans
+                        )
+                        for _index in range(stable_scan_count):
+                            fresh_raw_scan = next(scan_iterator)
+                        globally_relocalized = slam.relocalize(
+                            fresh_raw_scan
+                        )
+                        if not globally_relocalized:
+                            if not slam.reseed(fresh_raw_scan):
+                                raise RuntimeError(
+                                    "链路重连成功，但稳定扫描不足，"
+                                    "无法恢复定位参考"
+                                )
+                            print(
+                                "全局重定位证据不足，保持原位姿并重建局部参考；"
+                                "恢复期禁止写地图。"
+                            )
+                        slam.suspend_mapping(
+                            args.reconnect_map_hold_scans
+                        )
+                    except RuntimeError as reconnect_error:
+                        reconnect_failed = reconnect_error
+                    finally:
+                        runtime_budget.resume()
+                    if reconnect_failed is not None:
+                        print(
+                            "链路在 {} 次彻底清理重连后仍未恢复；"
+                            "车辆已由 TTL 停止，本次地图将正常保存：{}"
+                            .format(
+                                args.link_reconnect_attempts,
+                                reconnect_failed,
+                            )
+                        )
+                        break
+                    rejected_count = 0
+                    relocalization_count = 0
+                    print(
+                        "重连停车稳定完成，{}；随后 {} 帧只定位、不写地图；"
+                        "{}。"
+                        .format(
+                            (
+                                "全局重定位成功"
+                                if globally_relocalized
+                                else "局部参考恢复"
+                            ),
+                            args.reconnect_map_hold_scans,
+                            (
+                                "下次直行采用增强起步补偿 {} mm/s".format(
+                                    speed_controller.linear_adjustment_mm_s
+                                )
+                                if stronger_restart
+                                else "未中断直行，不额外提高线速度"
+                            ),
+                        )
+                    )
+                    continue
+            if command_sent:
+                motion_started = (
+                    command.linear_mm_s != 0
+                    or command.angular_mrad_s != 0
+                )
+            target = "-"
+            if command.target_xy_m is not None:
+                target = "({:+.2f},{:+.2f})".format(*command.target_xy_m)
+            safety_note = "-"
+            if command.state in (
+                "rotation_blocked",
+                "turn_limit_blocked",
+                "cautious_turn_probe",
+                "turn_escape",
+                "progress_escape",
+                "progress_escape_turn",
+                "narrow_passage_advancing",
+                "narrow_passage_turning",
+            ):
+                safety_note = command.reason
+            publish_live_map(update, command)
+            print(
+                "\rscan={} pose=({:+.2f},{:+.2f},{:+.1f}deg) "
+                "state={} cmd=({:+d},{:+d}) target={} points={} "
+                "rmse={:.3f} inliers={:.0f}% turn={}/{}/{} "
+                "linear_adjust={:+d} ttl={} map={} inspect={}/{} done={} "
+                "v={:.2f} w={:.2f} tx={} safety={}    ".format(
+                    accepted_count,
+                    update.pose.x_m,
+                    update.pose.y_m,
+                    math.degrees(update.pose.yaw_rad),
+                    command.state,
+                    command.linear_mm_s,
+                    command.angular_mrad_s,
+                    target,
+                    update.scan_points,
+                    update.rmse_m,
+                    update.inlier_ratio * 100.0,
+                    speed_controller.turn_floor_mrad_s,
+                    speed_controller.turn_limit_mrad_s,
+                    speed_controller.maximum_turn_speed_mrad_s,
+                    speed_controller.linear_adjustment_mm_s,
+                    command_ttl_ms,
+                    update.map_status,
+                    len(explorer._inspection_seen_sectors),
+                    explorer.config.obstacle_inspection_min_view_sectors,
+                    len(explorer._completed_inspection_components),
+                    update.linear_speed_m_s,
+                    update.angular_speed_rad_s,
+                    "sent" if command_sent else "held",
+                    safety_note,
+                ),
+                end="",
+                flush=True,
+            )
+            if (
+                args.save_every > 0
+                and accepted_count % args.save_every == 0
+            ):
+                slam.save(args.output, rebuild=False)
+            if command.finished:
+                print("\n没有可达的未知区域，探索完成。")
+                break
+    finally:
+        print("\n正在安全停车……")
+        # 无条件发送硬停止；最后一条 (0, 0) 速度命令只会把速度降到零，
+        # 旧底板的轮电机 PWM 通道仍可能保持使能并发出嗡鸣。
+        try:
+            client.stop()
+        except Exception as exc:
+            print("停车命令告警（短 TTL 仍会使旧命令失效）：{}".format(exc))
+        if lidar is not None:
+            lidar.close()
+        client.close()
+        if accepted_count:
+            # Export exactly the continuously corrected occupancy grid used
+            # by the live dashboard. Replaying historical keyframes here can
+            # resurrect an early false return cleared by later free rays.
+            paths = slam.save(args.output, rebuild=False)
+            print("已保存：{}".format(", ".join(str(path) for path in paths)))
+            print("建图门控统计：{}".format(slam.mapping_summary()))
+            if rejection_reason_counts:
+                print(
+                    "定位拒绝统计：total={} reasons={}".format(
+                        total_rejected_count,
+                        ", ".join(
+                            "{}={}".format(reason, count)
+                            for reason, count in sorted(
+                                rejection_reason_counts.items(),
+                                key=lambda item: (-item[1], item[0]),
+                            )
+                        ),
+                    )
+                )
+            invalid_packet_spans = int(getattr(
+                lidar,
+                "invalid_packet_spans",
+                0,
+            ))
+            incomplete_revolutions = int(getattr(
+                lidar,
+                "incomplete_revolutions",
+                0,
+            ))
+            if invalid_packet_spans or incomplete_revolutions:
+                print(
+                    "N10 坏帧过滤统计：invalid_packet_spans={} "
+                    "incomplete_revolutions={}".format(
+                        invalid_packet_spans,
+                        incomplete_revolutions,
+                    )
+                )
+            if runtime_budget is not None:
+                print(
+                    "运行计时：有效探索 {:.1f}s，重连暂停 {:.1f}s。"
+                    .format(
+                        runtime_budget.elapsed_s,
+                        runtime_budget.paused_s,
+                    )
+                )
+        else:
+            print("没有有效扫描，未生成空白地图。")
+        if last_update is not None:
+            publish_live_map(
+                last_update,
+                last_command,
+                state="finished",
+                reason="建图程序已停止，最终地图已保存",
+                running=False,
+                force=True,
+            )
+        if live_map_server is not None:
+            live_map_server.stop()
+            print("实时地图监控已关闭；最终 PNG、PGM 和轨迹文件仍保留。")
+    return paths
+
+
+def main():
+    parser = build_argument_parser()
+    args = parser.parse_args()
+    validate_args(args, parser)
+    try:
+        run(args)
+    except KeyboardInterrupt:
+        print("\n用户已取消等待，程序已退出。")
+
+
+if __name__ == "__main__":
+    main()

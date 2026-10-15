@@ -1,0 +1,7 @@
+{
+  "source_run": "20261001_173725",
+  "source_files": ["rotation_scans/clearance_015.json", "rotation_scans/clearance_016.json"],
+  "note": "Only the actual rejected rays, not full scans or an assertion of exterior clearance.",
+  "bearing_deg": [-105.00000000000001, -105.00000000000001],
+  "distance_m": [0.142, 0.14150000000000001]
+}

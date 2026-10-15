@@ -1,0 +1,9 @@
+# Offline/unit checks only: do not install multi-GB GPU models on a PC for linting.
+numpy>=1.26,<3
+Pillow>=10
+PyYAML>=6
+paramiko>=3,<5
+pytest>=8,<10
+Flask>=3,<4
+# The video round-trip suite uses synthetic frames/files, never a USB camera.
+opencv-python-headless>=4.8,<5
