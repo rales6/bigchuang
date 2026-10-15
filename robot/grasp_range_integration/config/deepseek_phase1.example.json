@@ -1,0 +1,9 @@
+{
+  "schema": "deepseek_phase1_planner.v1",
+  "enabled": true,
+  "api_key": "请填写DeepSeek_API密钥",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-flash",
+  "timeout_s": 90,
+  "minimum_plan_confidence": 0.68
+}

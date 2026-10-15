@@ -1,0 +1,207 @@
+"""树莓派程序的集中配置。
+
+这里的默认值适合先做桌面联调。上车前应通过命令行参数或修改本文件确认串口、
+雷达方向和地图尺寸。
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class SerialConfig:
+    port: str = "/dev/serial0"
+    baudrate: int = 230400
+    timeout_s: float = 0.03
+    request_timeout_s: float = 0.40
+    retries: int = 1
+    keepalive_period_s: float = 0.25
+    # 实车默认只使用 BLE；USB/UART 代码保留为显式选择的诊断备用链路。
+    link_mode: str = "ble"
+    usb_boot_settle_s: float = 1.5
+    ble_device_name: str = "ESP32-Robot-Car"
+    ble_address: Optional[str] = None
+    ble_connect_timeout_s: float = 6.0
+    # A GATT operation must fail quickly; using the discovery timeout here
+    # previously allowed one stuck write to block motion for 8-12 seconds.
+    ble_operation_timeout_s: float = 0.8
+    # Per-wheel output multipliers are owned by the Raspberry Pi. Channel
+    # order: front-left, front-right, rear-left, rear-right.
+    wheel_output_gains: tuple = (1.0, 1.0, 1.0, 1.0)
+
+
+@dataclass(frozen=True)
+class LidarConfig:
+    port: str = "/dev/ttyACM0"
+    # 镭神 N10 串口版固定使用 230400, 8N1。
+    baudrate: int = 230400
+    min_distance_m: float = 0.12
+    max_distance_m: float = 8.0
+    angle_offset_deg: float = 0.0
+    # N10 俯视角度顺时针递增；建图坐标系要求逆时针为正。
+    clockwise: bool = True
+    motor_control: bool = True
+    min_scan_points: int = 100
+
+
+@dataclass(frozen=True)
+class MappingConfig:
+    resolution_m: float = 0.05
+    width_cells: int = 400
+    height_cells: int = 400
+    max_scan_points: int = 420
+    max_correspondence_m: float = 0.35
+    min_match_points: int = 35
+    max_match_rmse_m: float = 0.16
+    min_match_inlier_ratio: float = 0.38
+    coarse_yaw_range_deg: float = 35.0
+    coarse_yaw_step_deg: float = 4.0
+    # A delayed scan can span much more rotation than an ordinary 10 Hz
+    # frame. Recovery gets a wider search without making every normal ICP
+    # update pay that cost.
+    reseed_coarse_yaw_range_deg: float = 75.0
+    reseed_max_rotation_deg: float = 70.0
+    icp_trim_fraction: float = 0.85
+    outlier_neighbor_distance_m: float = 0.45
+    # Range-adaptive point clusters remove isolated rays while preserving
+    # farther walls, whose adjacent laser beams are naturally farther apart.
+    outlier_cluster_base_radius_m: float = 0.06
+    outlier_cluster_radius_per_meter: float = 0.025
+    outlier_cluster_max_radius_m: float = 0.28
+    outlier_cluster_min_neighbors: int = 2
+    # Anchor frame-to-frame ICP against a short, recent local map.
+    local_submap_scan_count: int = 8
+    local_submap_max_points: int = 1000
+    local_submap_voxel_m: float = 0.07
+    local_submap_max_rmse_m: float = 0.14
+    local_submap_min_inlier_ratio: float = 0.42
+    local_submap_max_correction_m: float = 0.08
+    local_submap_max_correction_deg: float = 4.0
+    # Sparse long-term keyframes provide a global anchor in addition to the
+    # rolling six-scan local map.
+    global_keyframe_translation_m: float = 0.18
+    global_keyframe_rotation_deg: float = 10.0
+    global_map_max_points: int = 3200
+    global_map_voxel_m: float = 0.08
+    global_match_every_updates: int = 3
+    global_match_max_correction_m: float = 0.18
+    global_match_max_correction_deg: float = 10.0
+    relocalization_min_keyframes: int = 4
+    relocalization_max_correction_m: float = 0.22
+    relocalization_max_correction_deg: float = 12.0
+    relocalization_max_rmse_m: float = 0.10
+    relocalization_min_inlier_ratio: float = 0.55
+    lidar_offset_x_m: float = 0.0
+    lidar_offset_y_m: float = 0.0
+    map_keyframe_translation_m: float = 0.025
+    map_keyframe_rotation_deg: float = 2.0
+    map_keyframe_max_interval_s: float = 0.50
+    # Occupancy mapping is performed only at deliberate stationary
+    # observation poses. Motion scans remain available to localization.
+    stationary_map_translation_m: float = 0.40
+    stationary_map_rotation_deg: float = 30.0
+    stationary_map_settle_scans: int = 2
+    stationary_map_fusion_scans: int = 5
+    stationary_map_min_support_scans: int = 3
+    stationary_map_angle_bin_deg: float = 1.0
+    stationary_map_range_tolerance_m: float = 0.10
+    stationary_map_max_pose_translation_m: float = 0.025
+    stationary_map_max_pose_rotation_deg: float = 1.2
+    stationary_map_max_match_rmse_m: float = 0.11
+    stationary_map_min_match_inlier_ratio: float = 0.50
+    # Before a stopped scan becomes a permanent map keyframe, align its full
+    # 360-degree cloud against previously accepted stopped observations. This
+    # repairs yaw lost to rolling-scan distortion during fast turns while
+    # keeping moving scans out of the canonical global reference.
+    stationary_anchor_min_keyframes: int = 3
+    stationary_anchor_yaw_range_deg: float = 42.0
+    stationary_anchor_yaw_step_deg: float = 7.0
+    stationary_anchor_max_translation_m: float = 0.55
+    stationary_anchor_max_rotation_deg: float = 42.0
+    stationary_anchor_max_rmse_m: float = 0.105
+    stationary_anchor_min_inlier_ratio: float = 0.58
+    stationary_anchor_large_correction_deg: float = 6.0
+    stationary_anchor_min_score_improvement: float = 0.008
+    # One fused observation represents agreement across several raw scans,
+    # so its endpoint must cross the occupied threshold in one update.
+    stationary_map_occupied_evidence_scale: float = 2.2
+    stationary_map_occupied_inflation_cells: int = 1
+    # Fill safe free-space slivers between adjacent dense lidar beams. The
+    # fill stops before the nearer return, so it cannot pass through a wall.
+    map_free_fill_max_angle_deg: float = 2.0
+    map_free_fill_spacing_cells: float = 0.70
+    map_free_fill_endpoint_margin_m: float = 0.08
+    # Retained for compatibility with calibration utilities. Autonomous
+    # mapping no longer writes scans while the vehicle is moving.
+    map_min_linear_speed_m_s: float = 0.025
+    map_max_linear_speed_m_s: float = 0.30
+    map_max_angular_speed_rad_s: float = 0.65
+    map_speed_filter_window: int = 3
+    mapping_max_distance_m: float = 6.0
+    # Revisited mapping keyframes replace older evidence around the same pose.
+    # Replaying these keyframes lets old free space return to unknown and lets
+    # a newly observed wall replace an older position/orientation.
+    # A 15-minute run can produce about 1,800 mapping keyframes at the
+    # 0.50-second gate. Keep the full session instead of dropping the oldest
+    # rooms after only a few minutes.
+    map_rebuild_max_keyframes: int = 1800
+    map_revisit_replace_radius_m: float = 0.30
+    map_revisit_replace_yaw_deg: float = 25.0
+    # Keep several independent observations from the same viewpoint. One new
+    # scan cannot erase an older wall; only a sustained run of newer evidence
+    # gradually retires the oldest keyframes in that direction.
+    map_revisit_evidence_frames: int = 4
+    map_contradiction_clear_hits: int = 5
+    map_auto_expand: bool = True
+    map_expand_margin_m: float = 1.0
+    render_wall_gap_max_m: float = 0.0
+    render_wall_support_m: float = 0.10
+    # Output-only structural cleanup. Long, strongly overlapping parallel
+    # bands are repeated observations of the same room wall, not two walls.
+    # Compact rectangular contours are completed only when three sides and
+    # all four corners are already supported and the missing side has not
+    # been confirmed free.
+    render_parallel_wall_merge_max_m: float = 0.20
+    render_parallel_wall_min_span_m: float = 1.80
+    render_contour_close_max_span_m: float = 1.60
+    render_contour_min_side_support: float = 0.35
+    min_obstacle_area_m2: float = 0.01
+    max_pose_linear_speed_m_s: float = 0.55
+    pose_translation_margin_m: float = 0.025
+    max_pose_translation_step_m: float = 0.12
+    # A differential-drive chassis cannot translate sideways in its own
+    # frame. Point-to-point ICP otherwise invents a few millimetres of lateral
+    # wall sliding on every turn, which becomes decimetres of map distortion.
+    nonholonomic_lateral_gain: float = 0.0
+    # A reliable rolling/global submap is an absolute geometric observation,
+    # not wheel odometry. Preserve a bounded part of its cross-track
+    # correction so revisited walls can actually close a loop.
+    submap_lateral_correction_gain: float = 0.50
+    submap_lateral_correction_max_m: float = 0.025
+    max_pose_angular_speed_rad_s: float = 4.5
+    pose_rotation_margin_deg: float = 8.0
+    # Even when scan timestamps are delayed, one ICP update may not rotate
+    # the map by an implausibly large amount.
+    max_pose_rotation_step_deg: float = 28.0
+    # Adjacent scans provide the low-latency yaw increment. A reliable
+    # rolling/global submap may correct its accumulated drift gradually.
+    heading_submap_correction_gain: float = 0.65
+    heading_submap_max_correction_deg: float = 2.0
+    # The real chassis slips along a short arc while turning. Classify the
+    # motion from lidar and accept plausible translation instead of assuming
+    # a perfect wheel-commanded spin.
+    lidar_turn_min_rotation_deg: float = 1.5
+    lidar_turn_max_translation_m: float = 0.08
+    pure_rotation_max_translation_m: float = 0.08
+    # Indoor car mapping is dominated by orthogonal wall families. Learn the
+    # room axes from lidar itself and use them as a slow yaw-drift anchor.
+    manhattan_enabled: bool = True
+    manhattan_min_segments: int = 24
+    manhattan_min_confidence: float = 0.48
+    manhattan_anchor_observations: int = 8
+    # The residual is already folded modulo 90 degrees, so its complete valid
+    # domain is just under +/-45 degrees. A 20-degree gate made the anchor
+    # permanently switch off exactly when accumulated yaw drift needed it.
+    manhattan_max_error_deg: float = 44.5
+    manhattan_correction_gain: float = 0.30
+    manhattan_max_correction_deg: float = 1.5

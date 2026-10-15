@@ -1,0 +1,8 @@
+{
+  "capture_interval_s": 1.5,
+  "model_interval_s": 4.0,
+  "maximum_frame_age_s": 2.0,
+  "maximum_identity_age_s": 20.0,
+  "guidance_step_m": 0.30,
+  "maximum_guidance_deg": 15.0
+}

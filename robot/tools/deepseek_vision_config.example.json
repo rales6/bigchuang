@@ -1,0 +1,38 @@
+{
+  "schema": "deepseek_vision_candidate_ranker.v1",
+  "enabled": true,
+  "api_key": "请填写你的DeepSeek_API_Key",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-flash",
+  "timeout_s": 90,
+  "minimum_confidence": 0.72,
+  "minimum_margin": 0.2,
+  "repeat_count": 2,
+  "maximum_candidates": 6,
+  "maximum_landmark_distance_m": 5.5,
+  "camera_horizontal_fov_deg": 82,
+  "camera_bearing_margin_deg": 8,
+  "landmark_categories": [
+    "glass_wall",
+    "stairs",
+    "door",
+    "window",
+    "cabinet",
+    "sign",
+    "table"
+  ],
+  "stable_anchor_categories": [
+    "glass_wall",
+    "stairs",
+    "door",
+    "window"
+  ],
+  "context_only_categories": [
+    "table",
+    "chair",
+    "desk"
+  ],
+  "semantic_map": "semantic_runtime.json",
+  "occupancy_map": "ble_scene_17.pgm",
+  "occupancy_yaml": "ble_scene_17.yaml"
+}

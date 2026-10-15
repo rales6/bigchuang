@@ -1,0 +1,7 @@
+numpy>=1.24
+pyserial>=3.5
+bleak>=0.22
+Pillow>=9.2
+# The semantic camera code uses V4L2 through OpenCV. On Raspberry Pi OS it is
+# also fine to install python3-opencv from apt into a system-site-packages venv.
+opencv-python-headless>=4.8

@@ -1,0 +1,41 @@
+{
+  "schema": "semantic_grid_map.v1",
+  "map_id": "demo_room_cleanup",
+  "occupancy_grid": {
+    "resolution_m": 0.25,
+    "origin_xy_m": [0.0, 0.0],
+    "rows": [
+      "########################",
+      "#......................#",
+      "#.................####.#",
+      "#.................####.#",
+      "#.......#####.....####.#",
+      "#.......#####..........#",
+      "#.......#####..........#",
+      "#......................#",
+      "#...###................#",
+      "#...###................#",
+      "#...###................#",
+      "#......................#",
+      "#......................#",
+      "#......................#",
+      "#......................#",
+      "########################"
+    ]
+  },
+  "robot_pose": {"grid_xy": [3, 13], "yaw_deg": 0.0, "confidence": 0.96},
+  "objects": [
+    {"id": "corner_nw", "name": "西北墙角", "category": "landmark", "grid_xy": [1, 1], "approach_xy": [2, 2], "mobility": "fixed", "confidence": 0.98},
+    {"id": "cabinet_01", "name": "灰色柜子", "category": "furniture", "grid_xy": [19, 3], "approach_xy": [17, 3], "mobility": "fixed", "confidence": 0.94},
+    {"id": "table_01", "name": "工作桌", "category": "furniture", "grid_xy": [10, 5], "approach_xy": [10, 7], "mobility": "fixed", "confidence": 0.95},
+    {"id": "dustpan_01", "name": "绿色簸箕", "category": "container", "grid_xy": [20, 12], "approach_xy": [19, 12], "mobility": "occasionally_moved", "confidence": 0.91}
+  ],
+  "search_regions": [
+    {"id": "floor_west", "name": "桌子西侧地面", "waypoints": [[3, 8], [6, 8], [6, 12]]},
+    {"id": "floor_east", "name": "柜子与簸箕附近地面", "waypoints": [[15, 8], [20, 8], [20, 12]]}
+  ],
+  "simulated_detections": [
+    {"id": "trash_01", "name": "地面纸团垃圾", "category": "trash", "grid_xy": [7, 11], "approach_xy": [7, 12], "mobility": "frequently_moved", "confidence": 0.88},
+    {"id": "bottle_01", "name": "蓝色水瓶", "category": "bottle", "grid_xy": [14, 10], "approach_xy": [14, 11], "mobility": "frequently_moved", "confidence": 0.90}
+  ]
+}

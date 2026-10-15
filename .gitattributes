@@ -39,3 +39,11 @@
 *.pth binary
 *.onnx binary
 *.safetensors binary
+*.jar binary
+*.dwg binary
+*.dxf -text
+
+# Published map files are byte-hashed against the device release. Preserve
+# their original line endings on Windows AND Linux; text normalization would
+# invalidate otherwise unchanged JSON/YAML release hashes after cloning.
+maps/current/** -text whitespace=cr-at-eol

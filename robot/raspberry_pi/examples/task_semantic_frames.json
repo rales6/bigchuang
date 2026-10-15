@@ -1,0 +1,23 @@
+{
+  "scope": "synthetic_bearing_input_for_offline_probe_not_measured_room_observations",
+  "frames": [
+    {
+      "frame_id": "demo_1", "captured_at_s": 100.0, "now_s": 101.0,
+      "capture_pose": {"x_m": 0.0, "y_m": 0.0, "yaw_deg": 20.0},
+      "current_pose": {"x_m": 0.0, "y_m": 0.0, "yaw_deg": 20.0},
+      "detections": [
+        {"category": "sign", "bearing_deg": 33.69, "confidence": 0.9, "bearing_calibrated": true},
+        {"category": "outlet", "bearing_deg": -26.57, "confidence": 0.9, "bearing_calibrated": true}
+      ]
+    },
+    {
+      "frame_id": "demo_2", "captured_at_s": 102.0, "now_s": 103.0,
+      "capture_pose": {"x_m": 0.0, "y_m": 0.0, "yaw_deg": 20.0},
+      "current_pose": {"x_m": 0.0, "y_m": 0.0, "yaw_deg": 20.0},
+      "detections": [
+        {"category": "sign", "bearing_deg": 33.69, "confidence": 0.9, "bearing_calibrated": true},
+        {"category": "outlet", "bearing_deg": -26.57, "confidence": 0.9, "bearing_calibrated": true}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+[
+  {
+    "name": "cleanup",
+    "instruction": "帮我处理地上的垃圾",
+    "expected_intent": "cleanup",
+    "expected_destination_id": "dustpan_01",
+    "required_actions": ["patrol_search", "grasp", "release", "verify_completion"]
+  },
+  {
+    "name": "navigate_table",
+    "instruction": "去工作桌旁边",
+    "expected_intent": "navigate",
+    "expected_target_id": "table_01",
+    "required_actions": ["navigate_to"],
+    "forbidden_actions": ["grasp", "release"]
+  },
+  {
+    "name": "inspect_cabinet",
+    "instruction": "看看灰色柜子附近有什么",
+    "expected_intent": "inspect",
+    "expected_target_id": "cabinet_01",
+    "required_actions": ["navigate_to", "report_result"],
+    "forbidden_actions": ["grasp", "release"]
+  },
+  {
+    "name": "bottle_to_table",
+    "instruction": "把蓝色水瓶放到工作桌上",
+    "expected_intent": "pick_and_place",
+    "expected_destination_id": "table_01",
+    "forbidden_target_ids": ["cabinet_01", "dustpan_01"],
+    "required_actions": ["locate_object", "grasp", "locate_destination", "release"]
+  },
+  {
+    "name": "unsupported_song",
+    "instruction": "给我唱一首歌",
+    "expected_intent": "unsupported",
+    "required_actions": ["report_result"],
+    "forbidden_actions": ["patrol_search", "navigate_to", "grasp"]
+  }
+]
