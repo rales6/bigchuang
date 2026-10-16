@@ -11,11 +11,11 @@ def main():
     root = Path(__file__).resolve().parents[1]
     snapshot = root / 'backups/semantic_inspection_20260917_195037/pi_snapshot'
     inspection = snapshot / 'inspections/ble_scene_17/20260917_190706'
-    job = '/home/sjtu/car_inspection_jobs/object_inventory_probe_' + time.strftime('%Y%m%d_%H%M%S')
+    job = '/home/gpu/car_inspection_jobs/object_inventory_probe_' + time.strftime('%Y%m%d_%H%M%S')
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect('202.121.181.124', port=2020, username='sjtu',
+    client.connect('198.51.100.20', port=2020, username='sjtu',
                    password=os.environ['QWEN_SSH_PASSWORD'], timeout=15)
     try:
         with client.open_sftp() as sftp:
@@ -32,7 +32,7 @@ def main():
             pairs += [(snapshot / ('maps/' + name), 'maps/' + name) for name in ['ble_scene_17.pgm', 'ble_scene_17.yaml']]
             for source, destination in pairs:
                 sftp.put(str(source), job + '/' + destination)
-        command = ['/home/sjtu/3090/.venv/bin/python', '-u', job + '/scripts/run_semantic_object_inventory.py',
+        command = ['/home/gpu/3090/.venv/bin/python', '-u', job + '/scripts/run_semantic_object_inventory.py',
             '--inspection', job + '/photos', '--map', job + '/maps/ble_scene_17.pgm',
             '--map-yaml', job + '/maps/ble_scene_17.yaml', '--output', job + '/output',
             '--ground-url', 'http://127.0.0.1:8010/agent/ground', '--queries', '插座', '--limit', '1', '--timeout', '90']

@@ -24,4 +24,4 @@
 
 审计部署工具：`python -m grasp_range_integration.tools.deploy_body_occlusion --deploy`。部署要求任务空闲；先备份、核验旧版本、暂存编译、原子替换、软件测试、核验冻结文件，再重启网页桥，不自行下发运动命令；失败回滚。
 
-本轮树莓派备份：`/home/dachuang/dachuang/track/final_work/deployment_backups/body_occlusion_20261002_163443`。真实机器人任务的结果应另外记录，软件回放通过不等同完整夹取搬运成功。
+本轮树莓派备份：`/home/robot/dachuang/track/final_work/deployment_backups/body_occlusion_20261002_163443`。真实机器人任务的结果应另外记录，软件回放通过不等同完整夹取搬运成功。

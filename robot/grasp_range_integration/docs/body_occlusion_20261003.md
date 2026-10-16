@@ -21,4 +21,4 @@
 
 ## 部署
 
-树莓派运行模块位于 `/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/rotation_guard.py`。每次启动寻物子进程重新加载该模块，不需要为了此修改重启网页桥或摄像头服务。此次部署不启动小车，也不覆盖已有双目视频。
+树莓派运行模块位于 `/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/rotation_guard.py`。每次启动寻物子进程重新加载该模块，不需要为了此修改重启网页桥或摄像头服务。此次部署不启动小车，也不覆盖已有双目视频。

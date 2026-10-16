@@ -83,7 +83,7 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--anchor", default="玻璃门")
     parser.add_argument("--target", default="扫帚")
-    parser.add_argument("--gpu-url", default="http://192.168.55.33:8011")
+    parser.add_argument("--gpu-url", default="http://192.0.2.20:8011")
     parser.add_argument("--require-gpu", action="store_true")
     args = parser.parse_args()
 

@@ -89,8 +89,8 @@ def backup_and_upload(
 
 def deploy(pi: paramiko.SSHClient, rtx: paramiko.SSHClient) -> tuple[str, str]:
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    pi_root = "/home/dachuang/dachuang/car1.0"
-    rtx_root = "/home/sjtu/3090"
+    pi_root = "/home/robot/dachuang/car1.0"
+    rtx_root = "/home/gpu/3090"
     pi_files = [
         (ROOT / "3090/scripts/run_pi_task_gateway.py", "3090/scripts/run_pi_task_gateway.py"),
     ]
@@ -230,11 +230,11 @@ def main() -> None:
     args = parser.parse_args()
     pi_password = os.environ.get("PI_SSH_PASSWORD") or getpass.getpass("Pi SSH password: ")
     rtx_password = os.environ.get("RTX_SSH_PASSWORD") or getpass.getpass("RTX SSH password: ")
-    pi = connect("dachuang.local", 22, "dachuang", pi_password)
-    rtx = connect("202.121.181.124", 2020, "sjtu", rtx_password)
+    pi = connect("pi.example.invalid", 22, "dachuang", pi_password)
+    rtx = connect("198.51.100.20", 2020, "sjtu", rtx_password)
     try:
-        print(inspect(pi, "/home/dachuang/dachuang/car1.0", "raspberry_pi"))
-        print(inspect(rtx, "/home/sjtu/3090", "rtx_3090"))
+        print(inspect(pi, "/home/robot/dachuang/car1.0", "raspberry_pi"))
+        print(inspect(rtx, "/home/gpu/3090", "rtx_3090"))
         if args.inspect_only:
             return
         pi_result, rtx_result = deploy(pi, rtx)

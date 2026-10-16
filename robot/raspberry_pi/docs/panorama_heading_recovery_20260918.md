@@ -30,6 +30,6 @@
 
 相关回归 336 项通过，新增 9 项朝向测试。完整扰动仿真 1/3 通过，两个机械卡滞场景仍失败，三次均未发生仿真碰撞。
 
-已于 19:32 部署，未启动实车。备份：`/home/dachuang/dachuang/car1.0/backups/panorama_heading_recovery_20260918_193230`；回执：`simulation_runs/panorama_heading_recovery_deployment_20260918_193230.json`。部署前无运行中的车辆任务，部署后源码哈希及无底盘指令的恢复检查通过，原地图、树莓派入口和启动脚本哈希不变。
+已于 19:32 部署，未启动实车。备份：`/home/robot/dachuang/car1.0/backups/panorama_heading_recovery_20260918_193230`；回执：`simulation_runs/panorama_heading_recovery_deployment_20260918_193230.json`。部署前无运行中的车辆任务，部署后源码哈希及无底盘指令的恢复检查通过，原地图、树莓派入口和启动脚本哈希不变。
 
 短时启动/查询/停止工具为 `tools/run_pi_short_panorama_test.py`。尚未收到场地准备和现场急停确认，未执行启动。测试不是全程验收，仍需要现场路线与地图显示位置对照。

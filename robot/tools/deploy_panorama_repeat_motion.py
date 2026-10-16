@@ -61,7 +61,7 @@ def main():
         'user_requested_deployment_of_unpassed_full_simulation': True,
         'deployed': False, 'files': [],
     }
-    client = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     try:
         if json.loads(python(client, 'python3', ACTIVE_CHECK)):
             raise RuntimeError('Robot mission is running; no files replaced and no stop command sent')

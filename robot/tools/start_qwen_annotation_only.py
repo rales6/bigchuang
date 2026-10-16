@@ -37,9 +37,9 @@ def start(snapshot):
                     raise ValueError('Unsafe photo basename')
                 names.add(name)
     stamp = time.strftime('%Y%m%d_%H%M%S')
-    job = '/home/sjtu/car_inspection_jobs/object_inventory_' + stamp
+    job = '/home/gpu/car_inspection_jobs/object_inventory_' + stamp
     local_output = ROOT / 'semantic_maps' / ('qwen_reannotation_' + stamp)
-    client = connect('202.121.181.124', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
+    client = connect('198.51.100.20', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
     report = {'timestamp': stamp, 'run_id': run, 'backup': str(snapshot), 'job': job,
               'job_started': False, 'robot_motion_started': False,
               'existing_service_restarted': False, 'capture_count': len(captures),

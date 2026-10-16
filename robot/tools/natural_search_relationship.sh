@@ -2,13 +2,13 @@
 set -euo pipefail
 
 release_dir="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-car_root="${CAR_ROOT:-/home/dachuang/dachuang/car1.0}"
+car_root="${CAR_ROOT:-/home/robot/dachuang/car1.0}"
 cd "$car_root"
 source "$car_root/.venv-pi/bin/activate"
 
 instruction="${1:?请提供自然语言指令}"
 decision="$car_root/search_runs/latest_decision.json"
-gpu_url="${SEARCH_3090_URL:-http://192.168.55.33:8011}"
+gpu_url="${SEARCH_3090_URL:-http://192.0.2.20:8011}"
 
 python3 -u -m raspberry_pi.submit_search_command \
   "$instruction" \
@@ -60,7 +60,7 @@ exec python3 -u "$release_dir/relationship_object_search_entry.py" \
   --3090-url "$gpu_url" \
   --link ble \
   --ble-name ESP32-Robot-Car \
-  --ble-address 64:B7:08:69:9A:E6 \
+  --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 \
   --speed 240 \
   --slow-speed 230 \

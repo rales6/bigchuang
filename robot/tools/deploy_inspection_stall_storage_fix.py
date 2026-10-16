@@ -12,7 +12,7 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE_ROOT = "/home/dachuang/dachuang/car1.0"
+REMOTE_ROOT = "/home/robot/dachuang/car1.0"
 FILES = (
     "raspberry_pi/map_camera_inspection.py",
     "raspberry_pi/mapping/adaptive_speed.py",
@@ -36,7 +36,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local",
+        "pi.example.invalid",
         username="dachuang",
         password=password,
         timeout=45,
@@ -80,7 +80,7 @@ def main() -> None:
             "grep -q '20260905_155436' raspberry_pi/mapping/adaptive_speed.py && "
             "grep -q 'inspection_output_directory_disappeared' "
             "raspberry_pi/map_camera_inspection.py && "
-            "curl -fsS --max-time 10 http://192.168.55.33:8010/health",
+            "curl -fsS --max-time 10 http://192.0.2.20:8010/health",
             timeout=90,
         )
         print("PI_INSPECTION_FIX_DEPLOYED")

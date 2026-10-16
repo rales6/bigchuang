@@ -2,9 +2,9 @@
 
 ## 当前部署边界
 
-第一阶段的候选运动补偿、有限朝向校准已经于 16:21 部署，部署回执为 `simulation_runs/panorama_localization_deployment_20260918_162110.json`，树莓派备份为 `/home/dachuang/dachuang/car1.0/backups/panorama_localization_20260918_162110`。
+第一阶段的候选运动补偿、有限朝向校准已经于 16:21 部署，部署回执为 `simulation_runs/panorama_localization_deployment_20260918_162110.json`，树莓派备份为 `/home/robot/dachuang/car1.0/backups/panorama_localization_20260918_162110`。
 
-截至 16:53，本文第二阶段修改仅在电脑本地。随后用户明确要求部署，已于 16:58 部署三个代码文件，**没有启动实车**。备份为 `/home/dachuang/dachuang/car1.0/backups/panorama_repeat_motion_20260918_165830`，回执为 `simulation_runs/panorama_repeat_motion_deployment_20260918_165830.json`。
+截至 16:53，本文第二阶段修改仅在电脑本地。随后用户明确要求部署，已于 16:58 部署三个代码文件，**没有启动实车**。备份为 `/home/robot/dachuang/car1.0/backups/panorama_repeat_motion_20260918_165830`，回执为 `simulation_runs/panorama_repeat_motion_deployment_20260918_165830.json`。
 
 本次使用独立第二阶段部署工具，核对测试时的源码哈希、上次部署基线和任务未运行状态；先部署扫描匹配器，再部署其调用方。树莓派导入、旋转匹配及覆盖分离检查通过，入口脚本和原地图保持树莓派原有哈希。第一阶段部署工具仍固定旧快照。本地清单是部署前历史快照，不修改其时间及哈希。
 

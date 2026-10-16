@@ -25,7 +25,7 @@ def main():
                  'maps/ble_scene_17.pgm', 'maps/ble_scene_17.yaml']
     baseline = ROOT / 'simulation_runs/field_localization_20260918_155858/deployed_sources'
     expected = {p: hashlib.sha256((baseline / Path(p).name).read_bytes()).hexdigest() for p in sources}
-    client = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     try:
         active = json.loads(python(client, 'python3', '''
 import json, pathlib

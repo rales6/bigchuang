@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 def camera_environment(base=None):
     env = dict(os.environ if base is None else base)
-    root = Path(env.get('FINAL_WORK_TRACK_ROOT', '/home/dachuang/dachuang/track'))
+    root = Path(env.get('FINAL_WORK_TRACK_ROOT', '/home/robot/dachuang/track'))
     marker = root / 'final_work/data/camera_broker.json'
     if marker.is_file():
         data = json.loads(marker.read_text(encoding='utf-8'))

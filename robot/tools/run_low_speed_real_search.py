@@ -10,8 +10,8 @@ import paramiko
 
 WEB_PATTERN = "[g]rab_visual/web_app.py"
 WEB_COMMAND = (
-    "/home/dachuang/dachuang/.venv/bin/python /home/dachuang/grab_visual/web_app.py "
-    "--qwen-url http://192.168.55.33:8010 --left-camera 2 --right-camera 0 "
+    "/home/robot/dachuang/.venv/bin/python /home/robot/grab_visual/web_app.py "
+    "--qwen-url http://192.0.2.20:8010 --left-camera 2 --right-camera 0 "
     "--host 0.0.0.0 --port 8080"
 )
 
@@ -30,7 +30,7 @@ def main():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local",
+        "pi.example.invalid",
         username="dachuang",
         password=os.environ["PI_SSH_PASSWORD"],
         timeout=45,
@@ -103,8 +103,8 @@ def main():
         if web_was_running:
             print("RESTORING_CAMERA_WEB_SERVICE", flush=True)
             launch = (
-                "cd /home/dachuang/grab_visual && "
-                f"nohup {WEB_COMMAND} >/home/dachuang/grab_visual/web_app.log 2>&1 </dev/null &"
+                "cd /home/robot/grab_visual && "
+                f"nohup {WEB_COMMAND} >/home/robot/grab_visual/web_app.log 2>&1 </dev/null &"
             )
             try:
                 remote(client, launch, timeout=10)

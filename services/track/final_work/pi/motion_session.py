@@ -19,10 +19,10 @@ import time
 from urllib import request as urlrequest
 
 
-GRAB_ROOT = Path(os.environ.get("FINAL_WORK_GRAB_ROOT", "/home/dachuang/grab_visual"))
+GRAB_ROOT = Path(os.environ.get("FINAL_WORK_GRAB_ROOT", "/home/robot/grab_visual"))
 GRAB_STATUS_URL = os.environ.get("FINAL_WORK_GRAB_STATUS_URL", "http://127.0.0.1:8080/api/status")
 LOG_ROOT = Path(os.environ.get(
-    "FINAL_WORK_PI_LOG_DIR", "/home/dachuang/dachuang/track/final_work/logs"
+    "FINAL_WORK_PI_LOG_DIR", "/home/robot/dachuang/track/final_work/logs"
 ))
 
 
@@ -56,7 +56,7 @@ def _web_pids() -> list[int]:
 
 def _disconnect_ble_owner() -> None:
     """Release a stale BlueZ GATT owner and wait until it is observable."""
-    address = os.environ.get("FINAL_WORK_BLE_ADDRESS", "64:B7:08:69:9A:E6")
+    address = os.environ.get("FINAL_WORK_BLE_ADDRESS", "AA:BB:CC:DD:EE:01")
     try:
         disconnected = subprocess.run(
             ["bluetoothctl", "disconnect", address],

@@ -88,3 +88,22 @@ runtime/
 
 # Test fixtures, Gradle wrapper JAR and current maps ARE source-controlled.
 !apps/android/gradle/wrapper/gradle-wrapper.jar
+
+# Internal handoff assets are provisioned separately, never force-add them.
+maps/current/**
+!maps/current/README.md
+docs/maintenance/source_manifest.json
+docs/maintenance/deepseek_api_inventory.json
+docs/maintenance/workspace_archive.json
+docs/maintenance/2026*.md
+robot/grasp_range_integration/tests/fixtures/
+robot/tests/fixtures/
+robot/grasp_range_integration/phase1/glass_boundaries.json
+robot/grasp_range_integration/DEPLOYMENT_RECORD.json
+robot/grasp_range_integration/tools/robot_skills_deploy_manifest.json
+services/grasp/gpu/arm_teach_artifacts/
+services/track/configs/stereo_calibration.yaml
+services/track/current_frame.jpg
+services/track/test_stereo.jpg
+services/grasp/gpu/*graspable*.png
+services/grasp/gpu/learned_response.json

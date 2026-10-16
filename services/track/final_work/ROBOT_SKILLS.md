@@ -40,14 +40,14 @@
 
 ## 状态与证据位置
 
-树莓派运行代码：`/home/dachuang/dachuang/track/final_work/pi/`。
+树莓派运行代码：`/home/robot/dachuang/track/final_work/pi/`。
 
-- `robot_skills_state.json`：`/home/dachuang/dachuang/track/final_work/data/`，保存本次携带编号、实际模型落地姿态、导航交接和放置状态。
+- `robot_skills_state.json`：`/home/robot/dachuang/track/final_work/data/`，保存本次携带编号、实际模型落地姿态、导航交接和放置状态。
 - 区域任务与导航决策：同目录的 `navigation/`。
-- 区域停照：`/home/dachuang/dachuang/car1.0/search_runs/ble_scene_17/<本轮目录>/observations/`。
-- 放置前后双摄照片与分阶段状态：`/home/dachuang/dachuang/track/final_work/data/placement_evidence/<任务编号>/`。
-- 新的机械臂插件：`/home/dachuang/grab_visual/placement_extension.py`，`arm_teach.py` 只增加插件注册，不改变原预测/训练/微调算法。
-- 3090：`/home/sjtu/track/final_work/gpu/robot_skill_catalog.py` 定义技能，`qwen_hub.py` 编译计划，`planner.py` 复用既有 DeepSeek，`robot_client.py` 顺序调用。
+- 区域停照：`/home/robot/dachuang/car1.0/search_runs/ble_scene_17/<本轮目录>/observations/`。
+- 放置前后双摄照片与分阶段状态：`/home/robot/dachuang/track/final_work/data/placement_evidence/<任务编号>/`。
+- 新的机械臂插件：`/home/robot/grab_visual/placement_extension.py`，`arm_teach.py` 只增加插件注册，不改变原预测/训练/微调算法。
+- 3090：`/home/gpu/track/final_work/gpu/robot_skill_catalog.py` 定义技能，`qwen_hub.py` 编译计划，`planner.py` 复用既有 DeepSeek，`robot_client.py` 顺序调用。
 
 放置沿用**本次实际闭爪前的模型姿态**，因此不会再叠加一次 s2/s3 下压。搬运过程中摄像头/BLE 所有者切换后，恢复的是闭爪抬臂命令历史，不是宣称读到了舵机实测位置；重新确认闭爪命令后才下臂。
 

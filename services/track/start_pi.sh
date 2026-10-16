@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TRACK_ROOT="${FINAL_WORK_TRACK_ROOT:-/home/dachuang/dachuang/track}"
-PYTHON="${FINAL_WORK_PI_PYTHON:-/home/dachuang/dachuang/.venv/bin/python}"
+TRACK_ROOT="${FINAL_WORK_TRACK_ROOT:-/home/robot/dachuang/track}"
+PYTHON="${FINAL_WORK_PI_PYTHON:-/home/robot/dachuang/.venv/bin/python}"
 PORT="${FINAL_WORK_PI_PORT:-8780}"
 LOG_DIR="${FINAL_WORK_PI_LOG_DIR:-${TRACK_ROOT}/final_work/logs}"
 DATA_DIR="${FINAL_WORK_DATA_DIR:-${TRACK_ROOT}/final_work/data}"

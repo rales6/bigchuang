@@ -10,7 +10,7 @@ else
     # 本地仓库布局：二者位于 track/3090。
     TRACK_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 fi
-PYTHON_BIN=${PURSUIT_PYTHON:-/home/sjtu/3090/.venv/bin/python}
+PYTHON_BIN=${PURSUIT_PYTHON:-/home/gpu/3090/.venv/bin/python}
 PORT=${PURSUIT_PORT:-8021}
 DEVICE=${PURSUIT_DEVICE:-cuda}
 LOG_ROOT=${PURSUIT_SERVER_LOG_DIR:-$TRACK_ROOT/logs/server}

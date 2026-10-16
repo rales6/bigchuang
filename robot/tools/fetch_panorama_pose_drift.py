@@ -11,7 +11,7 @@ from tools.deploy_task_localization_and_start_inventory import (
 
 def main():
     output = ROOT / 'simulation_runs' / ('field_pose_drift_' + time.strftime('%Y%m%d_%H%M%S'))
-    client = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     try:
         source = json.loads(python(client, 'python3', r'''
 import json, pathlib, re

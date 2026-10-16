@@ -39,6 +39,7 @@ class RangeFeedbackTests(unittest.TestCase):
         self.assertFalse(self.evidence(before,LaserScan(before.angles_rad,before.distances_m+1,0.),Pose2D())['accepted'])
         self.assertFalse(self.evidence(before,LaserScan(before.angles_rad[:20],before.distances_m[:20],0.),Pose2D())['accepted'])
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_real_recorded_stationary_scans_have_evidence(self):
         data=json.loads((Path(__file__).parent/'fixtures/startup_stationary_20260926.json').read_text(encoding='utf-8'))
         scans=[LaserScan(np.array(f['raw_angles_rad']),np.array(f['raw_distances_m']),0.) for f in data['frames']]

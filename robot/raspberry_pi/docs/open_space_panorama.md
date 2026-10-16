@@ -148,7 +148,7 @@ python -m car_sim.open_space_panorama_runtime_stress --profile realistic --seed-
 用户随后要求先部署有限试跑版。2026-09-16 已同步主程序、全景模块和启动脚本，
 Pi 端语法、哈希、真实 ICP 返回接口、车体过滤与外部障碍保留测试通过；旧地图
 哈希不变，没有启动运动。备份路径：
-`/home/dachuang/dachuang/car1.0/backups/inspection_route_20260916_204357`。
+`/home/robot/dachuang/car1.0/backups/inspection_route_20260916_204357`。
 启动前仍须现场核对 0.19 m / 横向半宽 0.125 m 过滤范围是否位于实车内部；
 此次仅测试车体回波是否还中断第一站自转拍照，不能把部署成功当作整圈验收通过。
 

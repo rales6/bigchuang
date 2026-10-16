@@ -65,9 +65,9 @@ class CompanionConfigurationTests(unittest.TestCase):
             calls.append((command, kwargs))
             return Completed()
 
-        result = recover_bluetooth("64:b7:08:69:9a:e6", run=run)
+        result = recover_bluetooth("AA:BB:CC:DD:EE:01", run=run)
         self.assertTrue(result.ok)
-        self.assertEqual(calls[0][0][-1], "64:B7:08:69:9A:E6")
+        self.assertEqual(calls[0][0][-1], "AA:BB:CC:DD:EE:01")
         self.assertNotIn("shell", calls[0][1])
 
     def test_runtime_disconnect_is_a_fatal_bluetooth_health_signal(self):

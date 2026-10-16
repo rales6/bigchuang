@@ -19,8 +19,8 @@
 
 ```bash
 mkdir -p ~/car_inspections/ble_scene_17
-rsync -av dachuang@172.18.14.74:~/dachuang/car1.0/inspections/ble_scene_17/ ~/car_inspections/ble_scene_17/
-rsync -av dachuang@172.18.14.74:~/dachuang/car1.0/maps/ble_scene_17_semantics.json ~/car_inspections/
+rsync -av dachuang@192.0.2.11:~/dachuang/car1.0/inspections/ble_scene_17/ ~/car_inspections/ble_scene_17/
+rsync -av dachuang@192.0.2.11:~/dachuang/car1.0/maps/ble_scene_17_semantics.json ~/car_inspections/
 ```
 
 在 3090 上运行：

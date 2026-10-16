@@ -4,7 +4,7 @@
 
 本阶段修改 `open_space_panorama.py` 与 `known_map_navigation.py`。本地验证完成后，用户明确要求部署，已于 18:55 部署，未启动实车。部署前基线回执为 `simulation_runs/panorama_repeat_motion_deployment_20260918_165830.json`。
 
-本次树莓派备份为 `/home/dachuang/dachuang/car1.0/backups/panorama_pose_quality_20260918_185505`，部署回执为 `simulation_runs/panorama_pose_quality_deployment_20260918_185505.json`。部署前确认没有运行中的巡检任务，安装后源码哈希一致，质量拒绝、转向恢复上下文及可信候选检查通过。原地图、入口文件、启动脚本和扫描匹配器保持树莓派原有哈希。完整扰动仿真未通过的限制不因部署而改变；本地清单仍保留为部署前历史快照。
+本次树莓派备份为 `/home/robot/dachuang/car1.0/backups/panorama_pose_quality_20260918_185505`，部署回执为 `simulation_runs/panorama_pose_quality_deployment_20260918_185505.json`。部署前确认没有运行中的巡检任务，安装后源码哈希一致，质量拒绝、转向恢复上下文及可信候选检查通过。原地图、入口文件、启动脚本和扫描匹配器保持树莓派原有哈希。完整扰动仿真未通过的限制不因部署而改变；本地清单仍保留为部署前历史快照。
 
 不修改初始定位流程、原地图、启动脚本、局部障碍距离判断、拍照次序及停车后批量 Qwen 标注。历史照片和语义结果也不自动重写。
 

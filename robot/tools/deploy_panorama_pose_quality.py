@@ -33,7 +33,7 @@ def main():
               'robot_started': False, 'files': [], 'unit_tests': reviewed['unit_tests'],
               'field_regressions_passed': True, 'full_disturbance_acceptance': False,
               'user_requested_deployment_of_unpassed_full_simulation': True}
-    client = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     try:
         active = json.loads(python(client, 'python3', ACTIVE_CHECK))
         report['active_missions_before_deployment'] = active

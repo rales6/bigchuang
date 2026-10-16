@@ -119,17 +119,17 @@ def main():
     parser.add_argument('--remote', action='store_true')
     parser.add_argument('--output', type=Path, default=ROOT/'.local/handoff/deepseek_inventory.json')
     args = parser.parse_args()
-    report = {'local': scan([ROOT.parent, Path('D:/xingxianfeng_files/dachaung')])}
+    report = {'local': scan([ROOT.parent, Path('D:/work/robot')])}
     if args.remote:
         remote_roots = {
-            'pi': ['/home/dachuang/dachuang', '/home/dachuang/grab_visual', '/home/dachuang/backups',
-                   '/home/dachuang/semantic_map_packages', '/home/dachuang/.config/systemd',
-                   '/etc/systemd/system', '/home/dachuang/.bashrc', '/home/dachuang/.profile'],
-            'gpu': ['/home/sjtu/track', '/home/sjtu/3090', '/home/sjtu/3090_new_method',
-                    '/home/sjtu/grab_visual', '/home/sjtu/backups', '/home/sjtu/car_runtime',
-                    '/home/sjtu/car_inspection_jobs', '/home/sjtu/car_inspections',
-                    '/home/sjtu/semantic_map_packages', '/home/sjtu/.config/systemd',
-                    '/etc/systemd/system', '/home/sjtu/.bashrc', '/home/sjtu/.profile']}
+            'pi': ['/home/robot/dachuang', '/home/robot/grab_visual', '/home/robot/backups',
+                   '/home/robot/semantic_map_packages', '/home/robot/.config/systemd',
+                   '/etc/systemd/system', '/home/robot/.bashrc', '/home/robot/.profile'],
+            'gpu': ['/home/gpu/track', '/home/gpu/3090', '/home/gpu/3090_new_method',
+                    '/home/gpu/grab_visual', '/home/gpu/backups', '/home/gpu/car_runtime',
+                    '/home/gpu/car_inspection_jobs', '/home/gpu/car_inspections',
+                    '/home/gpu/semantic_map_packages', '/home/gpu/.config/systemd',
+                    '/etc/systemd/system', '/home/gpu/.bashrc', '/home/gpu/.profile']}
         for role, roots in remote_roots.items():
             client = connect(role)
             try:

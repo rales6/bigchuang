@@ -13,10 +13,10 @@ import paramiko
 
 
 INSTRUCTION = "去柜子边上夹取一个红色的小物块"
-HOST = "172.18.5.31"
+HOST = "192.0.2.13"
 HOST_KEY_SHA256 = "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6"
-PYTHON = "/home/dachuang/dachuang/.venv/bin/python"
-TRACK = "/home/dachuang/dachuang/track"
+PYTHON = "/home/robot/dachuang/.venv/bin/python"
+TRACK = "/home/robot/dachuang/track"
 
 
 def main() -> None:
@@ -48,7 +48,7 @@ def main() -> None:
         if key_hash != HOST_KEY_SHA256:
             raise RuntimeError("树莓派 SSH 主机密钥不匹配")
         if args.offline_tests:
-            car = "/home/dachuang/dachuang/car1.0"
+            car = "/home/robot/dachuang/car1.0"
             release = car + "/ble_scene_17_relationship_20260919"
             command = (
                 "cd " + shlex.quote(car) + " && PYTHONPATH=" +

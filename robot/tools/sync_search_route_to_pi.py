@@ -7,7 +7,7 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE_ROOT = "/home/dachuang/dachuang/car1.0"
+REMOTE_ROOT = "/home/robot/dachuang/car1.0"
 
 
 def main() -> None:
@@ -16,7 +16,7 @@ def main() -> None:
         raise RuntimeError("PI_SSH_PASSWORD is required")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("dachuang.local", username="dachuang", password=password, timeout=15)
+    client.connect("pi.example.invalid", username="dachuang", password=password, timeout=15)
     files = (
         "raspberry_pi/search_route_planner.py",
         "plan_search_route.sh",

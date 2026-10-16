@@ -15,7 +15,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local", username="dachuang",
+        "pi.example.invalid", username="dachuang",
         password=os.environ["PI_SSH_PASSWORD"], timeout=45,
     )
     try:
@@ -30,7 +30,7 @@ def main() -> None:
         directory = stdout.read().decode("utf-8", errors="replace").strip()
         if not directory:
             raise RuntimeError("latest mission directory not found")
-        remote_root = "/home/dachuang/dachuang/car1.0"
+        remote_root = "/home/robot/dachuang/car1.0"
         OUTPUT.mkdir(parents=True, exist_ok=True)
         with client.open_sftp() as sftp:
             for remote, name in (

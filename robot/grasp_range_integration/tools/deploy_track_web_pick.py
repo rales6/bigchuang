@@ -22,11 +22,11 @@ import paramiko
 ROOT = Path(__file__).resolve().parents[1] / "track_web_integration"
 HOSTS = {
     "pi": {
-        "host": "172.18.5.31", "port": 22, "user": "dachuang",
+        "host": "192.0.2.13", "port": 22, "user": "dachuang",
         "password_env": "PI_SSH_PASSWORD",
         "host_key_sha256": "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6",
-        "root": "/home/dachuang/dachuang/track",
-        "python": "/home/dachuang/dachuang/.venv/bin/python",
+        "root": "/home/robot/dachuang/track",
+        "python": "/home/robot/dachuang/.venv/bin/python",
         "files": {
             "map_navigation_adapter.py": "147dcaa8da229beb82f6e67a25187d3e9a469f65394d27303cfc104c13fb651b",
             "robot_bridge.py": "bcc2b8c8d60cdeab525b25eea6d1fa9c1e6ea97b8b0f5d5e46e01be08af0e022",
@@ -45,11 +45,11 @@ HOSTS = {
         },
     },
     "gpu": {
-        "host": "202.121.181.124", "port": 2020, "user": "sjtu",
+        "host": "198.51.100.20", "port": 2020, "user": "sjtu",
         "password_env": "GPU_SSH_PASSWORD",
         "host_key_sha256": "11f798721ea24418ee4048fc6294714dd0592c5a10367084e4605c8a04b2d5b0",
-        "root": "/home/sjtu/track",
-        "python": "/home/sjtu/3090/.venv/bin/python",
+        "root": "/home/gpu/track",
+        "python": "/home/gpu/3090/.venv/bin/python",
         "files": {
             "plan_adaptation.py": "b758f20ce0aa76ad31225a3ad82827959b396da5851ebb812cd18804efc6bf7c",
         },

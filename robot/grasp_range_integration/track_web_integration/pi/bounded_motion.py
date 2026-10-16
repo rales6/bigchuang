@@ -711,7 +711,7 @@ def main() -> int:
     parser.add_argument("--command-ttl-ms", type=int, default=650)
     parser.add_argument("--lidar-port", default="/dev/ttyACM0")
     parser.add_argument("--ble-name", default="ESP32-Robot-Car")
-    parser.add_argument("--ble-address", default="64:B7:08:69:9A:E6")
+    parser.add_argument("--ble-address", default="AA:BB:CC:DD:EE:01")
     parser.add_argument("--ble-connect-timeout", type=float, default=10.0)
     parser.add_argument("--ble-retries", type=int, default=2)
     parser.add_argument("--ble-retry-delay", type=float, default=2.0)

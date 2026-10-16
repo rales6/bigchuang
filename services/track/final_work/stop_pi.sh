@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="${FINAL_WORK_TRACK_ROOT:-/home/dachuang/dachuang/track}"
+ROOT="${FINAL_WORK_TRACK_ROOT:-/home/robot/dachuang/track}"
 PID_FILE="$ROOT/final_work/pi_bridge.pid"
 if [[ -f "$PID_FILE" ]]; then
   PID="$(tr -cd '0-9' < "$PID_FILE")"

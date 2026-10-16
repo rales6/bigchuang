@@ -3,7 +3,7 @@ import glob
 import json
 
 events = []
-for path in glob.glob("/home/dachuang/grab_visual/logs/web_app.jsonl"):
+for path in glob.glob("/home/robot/grab_visual/logs/web_app.jsonl"):
     with open(path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
             try:

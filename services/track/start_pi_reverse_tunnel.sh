@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KEY="${FINAL_WORK_TUNNEL_KEY:-/home/dachuang/.ssh/final_work_3090_ed25519}"
-GPU_HOST="${FINAL_WORK_GPU_HOST:-192.168.55.33}"
+KEY="${FINAL_WORK_TUNNEL_KEY:-/home/robot/.ssh/final_work_3090_ed25519}"
+GPU_HOST="${FINAL_WORK_GPU_HOST:-192.0.2.20}"
 GPU_USER="${FINAL_WORK_GPU_USER:-sjtu}"
 REMOTE_PORT="${FINAL_WORK_TUNNEL_PORT:-18780}"
 SSH_PID=""

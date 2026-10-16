@@ -221,7 +221,7 @@ def configure_motion_experience(mission, args):
         "front_left_gain", "front_right_gain", "rear_left_gain", "rear_right_gain")}
     digest.update(json.dumps(identity, sort_keys=True).encode())
     path = base/"runtime"/"motion_experience.json"
-    audited_identity = dict(link="ble",ble_name="ESP32-Robot-Car",ble_address="64:B7:08:69:9A:E6",
+    audited_identity = dict(link="ble",ble_name="ESP32-Robot-Car",ble_address="AA:BB:CC:DD:EE:01",
         esp_port="/dev/serial0",lidar_port="/dev/ttyACM0",front_left_gain=1.15,
         front_right_gain=1.,rear_left_gain=.9,rear_right_gain=1.)
     compatible = ("3612fdb8f0e89a5171b046470fd4c8a42c91455bf7f540055f1e74540d9a518a",) if identity == audited_identity else ()

@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/dachuang/grab_visual
+cd /home/robot/grab_visual
 i=0
 while true; do
   i=$((i+1))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="${FINAL_WORK_TRACK_ROOT:-/home/sjtu/track}"
+ROOT="${FINAL_WORK_TRACK_ROOT:-/home/gpu/track}"
 PID_FILE="$ROOT/final_work/agent_web.pid"
 LOG_FILE="$ROOT/final_work/logs/agent_web.log"
 mkdir -p "$ROOT/final_work/logs"

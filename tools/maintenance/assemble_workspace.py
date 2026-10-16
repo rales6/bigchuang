@@ -33,12 +33,12 @@ EXTENSIONS = {".py", ".md", ".sh", ".ps1", ".json", ".yaml", ".yml", ".toml",
               ".bat", ".cmd", ".png", ".jpg", ".jpeg", ".svg", ".ico",
               ".webp", ".dxf", ".dwg", ".csv", ".ttf", ".pgm"}
 REMOTE = {
-    "pi": {"host": "172.18.12.242", "port": 22, "user": "dachuang",
+    "pi": {"host": os.environ.get("PI_HOST", "pi.example.invalid"), "port": int(os.environ.get("PI_SSH_PORT", "22")), "user": os.environ.get("PI_USER", "robot"),
            "password_env": "PI_SSH_PASSWORD",
-           "key": "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6"},
-    "gpu": {"host": "202.121.181.124", "port": 2020, "user": "sjtu",
+           "key": os.environ.get("PI_SSH_HOST_KEY_SHA256", "")},
+    "gpu": {"host": os.environ.get("GPU_HOST", "gpu.example.invalid"), "port": int(os.environ.get("GPU_SSH_PORT", "22")), "user": os.environ.get("GPU_USER", "gpu"),
             "password_env": "GPU_SSH_PASSWORD",
-            "key": "11f798721ea24418ee4048fc6294714dd0592c5a10367084e4605c8a04b2d5b0"},
+            "key": os.environ.get("GPU_SSH_HOST_KEY_SHA256", "")},
 }
 
 
@@ -139,6 +139,8 @@ def connect(role, pi_host=None):
     spec = dict(REMOTE[role])
     if role == "pi" and pi_host:
         spec["host"] = pi_host
+    if spec["host"].endswith(".invalid") or not re.fullmatch(r"[0-9a-f]{64}", spec["key"]):
+        raise RuntimeError("Configure the device host and independently verified SSH host-key SHA256 before connecting")
     password = os.environ.get(spec["password_env"])
     if not password:
         raise RuntimeError("Missing " + spec["password_env"])
@@ -180,7 +182,7 @@ def main():
         for role in ("pi", "gpu"):
             clients[role] = connect(role, args.pi_host)
         with clients["pi"].open_sftp() as sftp:
-            base = "/home/dachuang/dachuang/car1.0"
+            base = "/home/robot/dachuang/car1.0"
             assembly.remote_tree(sftp, base + "/raspberry_pi", "robot/raspberry_pi", "pi")
             release = base + "/ble_scene_17_relationship_20260919"
             assembly.remote_tree(sftp, release + "/grasp_range_integration", "robot/grasp_range_integration", "pi")
@@ -192,21 +194,21 @@ def main():
                         assembly.put(release + "/" + item.filename, Path("maps/current") / item.filename, stream.read(), "pi")
             # Runtime root supports its own transport implementation: preserve
             # that boundary instead of merging two different raspberry_pi trees.
-            track = "/home/dachuang/dachuang/track"
+            track = "/home/robot/dachuang/track"
             for name in ("pursuit", "integrations", "raspberry_pi", "car"):
                 assembly.remote_tree(sftp, track + "/" + name, Path("services/track") / name, "pi")
             for name in ("pi", "static", "tools", "tests"):
                 assembly.remote_tree(sftp, track + "/final_work/" + name,
                                      Path("services/track/final_work") / name, "pi")
             assembly.remote_tree(sftp, track + "/final_work", "services/track/final_work", "pi", recurse=False)
-            assembly.remote_tree(sftp, "/home/dachuang/grab_visual", "services/grasp/pi", "pi", recurse=False)
+            assembly.remote_tree(sftp, "/home/robot/grab_visual", "services/grasp/pi", "pi", recurse=False)
             # Canonical development adapters match actual running Pi adapters.
             assembly.remote_tree(sftp, track + "/final_work/pi",
                                  "robot/grasp_range_integration/track_web_integration/pi", "pi")
             # Reference DB is a dependency of CURRENT localisation, not an old run.
             assembly.remote_tree(sftp, base + "/maps/visual_reference_db", "maps/current/visual_reference_db", "pi")
         with clients["gpu"].open_sftp() as sftp:
-            track = "/home/sjtu/track"
+            track = "/home/gpu/track"
             for name in ("gpu", "static", "tools"):
                 assembly.remote_tree(sftp, track + "/" + name, Path("services/track") / name, "gpu")
             for name in ("gpu", "static"):
@@ -214,12 +216,12 @@ def main():
                                      Path("services/track/final_work") / name, "gpu")
             assembly.remote_tree(sftp, track + "/final_work/gpu",
                                  "robot/grasp_range_integration/track_web_integration/gpu", "gpu")
-            assembly.remote_tree(sftp, "/home/sjtu/grab_visual", "services/grasp/gpu", "gpu", recurse=False)
+            assembly.remote_tree(sftp, "/home/gpu/grab_visual", "services/grasp/gpu", "gpu", recurse=False)
             for name in ("src", "scripts", "requirements", "configs"):
-                assembly.remote_tree(sftp, "/home/sjtu/3090/" + name,
+                assembly.remote_tree(sftp, "/home/gpu/3090/" + name,
                                      Path("services/perception") / name, "gpu")
             for name in ("model_state.json", "model.pt"):
-                path = "/home/sjtu/grab_visual/arm_teach_artifacts/" + name
+                path = "/home/gpu/grab_visual/arm_teach_artifacts/" + name
                 info = sftp.stat(path)
                 if info.st_size > 10 * 1024 * 1024:
                     raise RuntimeError("Unexpectedly large active arm artifact")

@@ -18,7 +18,7 @@ import paramiko
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = ROOT / "maps" / "semantic_release_20260919"
-DEFAULT_DESTINATION = "/home/dachuang/semantic_map_packages/ble_scene_17_relationship_20260919"
+DEFAULT_DESTINATION = "/home/robot/semantic_map_packages/ble_scene_17_relationship_20260919"
 
 
 def digest_bytes(data: bytes) -> str:
@@ -109,7 +109,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--destination", default=DEFAULT_DESTINATION)
-    parser.add_argument("--host", default="dachuang.local")
+    parser.add_argument("--host", default="pi.example.invalid")
     parser.add_argument("--user", default="dachuang")
     parser.add_argument("--port", type=int, default=22)
     parser.add_argument("--update-existing", action="store_true",

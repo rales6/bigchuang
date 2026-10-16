@@ -114,7 +114,7 @@ class ObservationRanker:
     def __init__(self, decision: dict[str, Any], semantic: dict[str, Any]) -> None:
         self.decision = decision
         self.semantic = semantic
-        self.url = os.environ.get("SEARCH_3090_URL", "http://192.168.55.33:8010").rstrip("/")
+        self.url = os.environ.get("SEARCH_3090_URL", "http://192.0.2.20:8010").rstrip("/")
         self.cache: dict[str, dict[str, Any]] = {}
 
     def rank(self, known_map: Any, start_xy: tuple[float, float], route_request: dict[str, Any], route: dict[str, Any]) -> dict[str, Any]:
@@ -170,7 +170,7 @@ def main() -> None:
     decision = _read_json(Path(_argument("--decision")))
     release = Path(os.environ.get(
         "FINAL_WORK_SEMANTIC_RELEASE",
-        "/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919",
+        "/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919",
     ))
     semantic = _read_json(release / "semantic_runtime.json")
     ranker = ObservationRanker(decision, semantic)

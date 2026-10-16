@@ -7,10 +7,10 @@ import paramiko
 def main():
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect("dachuang.local", username="dachuang", password=os.environ["PI_SSH_PASSWORD"], timeout=45)
+    c.connect("pi.example.invalid", username="dachuang", password=os.environ["PI_SSH_PASSWORD"], timeout=45)
     command = (
         "cd ~/dachuang/car1.0 && source .venv-pi/bin/activate && "
-        "curl -fsS --max-time 10 http://192.168.55.33:8011/health >/dev/null && "
+        "curl -fsS --max-time 10 http://192.0.2.20:8011/health >/dev/null && "
         "./natural_search.sh '去柜子边上找一个红色瓶子' simulate"
     )
     _, out, err = c.exec_command(command, timeout=300)

@@ -67,10 +67,10 @@ class AgentPlanner:
         ).rstrip("/")
         self.model_path = os.environ.get(
             "FINAL_WORK_QWEN_MODEL",
-            "/home/sjtu/3090/models/qwen/Qwen3-VL-2B-Instruct",
+            "/home/gpu/3090/models/qwen/Qwen3-VL-2B-Instruct",
         )
         self.device = os.environ.get("FINAL_WORK_QWEN_DEVICE", "cuda")
-        self.source_root = Path(os.environ.get("FINAL_WORK_3090_SRC", "/home/sjtu/3090/src"))
+        self.source_root = Path(os.environ.get("FINAL_WORK_3090_SRC", "/home/gpu/3090/src"))
         self._planner = None
         self._lock = threading.RLock()
 

@@ -10,9 +10,9 @@ import time
 import paramiko
 
 
-HOST = "172.18.5.31"
+HOST = "192.0.2.13"
 HOST_KEY_SHA256 = "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6"
-TRACK = "/home/dachuang/dachuang/track"
+TRACK = "/home/robot/dachuang/track"
 PID_FILE = TRACK + "/final_work/pi_bridge.pid"
 
 

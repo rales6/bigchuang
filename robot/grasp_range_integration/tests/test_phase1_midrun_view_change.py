@@ -421,6 +421,7 @@ class DeadlineTests(unittest.TestCase):
 
 
 class RecordedStopTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         import json
         d=json.loads((Path(__file__).parent/'fixtures'/'midrun_stop_20260927_214129.json').read_text())
@@ -475,6 +476,7 @@ class RecordedStopTests(unittest.TestCase):
 
 
 class RecordedDispatchMarginTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         import json
         from raspberry_pi.known_map_navigation import KnownOccupancyMap

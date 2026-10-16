@@ -16,23 +16,23 @@ import time
 from tools.maintenance.assemble_workspace import connect
 
 ROOT = Path(__file__).resolve().parents[2]
-BASES = {'pi': '/home/dachuang/dachuang/track', 'gpu': '/home/sjtu/track'}
-PYTHONS = {'pi': '/home/dachuang/dachuang/.venv/bin/python', 'gpu': '/home/sjtu/3090/.venv/bin/python'}
+BASES = {'pi': '/home/robot/dachuang/track', 'gpu': '/home/gpu/track'}
+PYTHONS = {'pi': '/home/robot/dachuang/.venv/bin/python', 'gpu': '/home/gpu/3090/.venv/bin/python'}
 LEDGER = BASES['pi'] + '/final_work/data/robot_skills_state.json'
 FILES = [
     ('pi', 'pi/robot_skills.py', BASES['pi'] + '/final_work/pi/robot_skills.py'),
     ('pi', 'pi/region_navigation.py', BASES['pi'] + '/final_work/pi/region_navigation.py'),
     ('pi', 'pi/region_localization.py', BASES['pi'] + '/final_work/pi/region_localization.py'),
     ('pi', 'pi/placement_extension.py', BASES['pi'] + '/final_work/pi/placement_extension.py'),
-    ('pi', 'pi/placement_extension.py', '/home/dachuang/grab_visual/placement_extension.py'),
+    ('pi', 'pi/placement_extension.py', '/home/robot/grab_visual/placement_extension.py'),
     ('gpu', 'gpu/robot_skill_catalog.py', BASES['gpu'] + '/final_work/gpu/robot_skill_catalog.py'),
     ('gpu', 'gpu/qwen_hub.py', BASES['gpu'] + '/final_work/gpu/qwen_hub.py'),
     ('gpu', 'gpu/planner.py', BASES['gpu'] + '/final_work/gpu/planner.py'),
-    ('pi', 'phase1/adaptive_turn.py', '/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/adaptive_turn.py'),
-    ('pi', 'phase1/motion_interlock.py', '/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/motion_interlock.py'),
-    ('pi', 'phase1/relationship_find_only_entry.py', '/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/relationship_find_only_entry.py'),
-    ('pi', 'phase1/fresh_motion_feedback.py', '/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/fresh_motion_feedback.py'),
-    ('pi', 'phase1/startup_active_recovery.py', '/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/startup_active_recovery.py'),
+    ('pi', 'phase1/adaptive_turn.py', '/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/adaptive_turn.py'),
+    ('pi', 'phase1/motion_interlock.py', '/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/motion_interlock.py'),
+    ('pi', 'phase1/relationship_find_only_entry.py', '/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/relationship_find_only_entry.py'),
+    ('pi', 'phase1/fresh_motion_feedback.py', '/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/fresh_motion_feedback.py'),
+    ('pi', 'phase1/startup_active_recovery.py', '/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/startup_active_recovery.py'),
 ]
 
 # Audited against BOTH the local pre-edit file and live Pi on 2026-10-15.
@@ -101,7 +101,7 @@ def recovered_holding(pi, gpu, original, arm):
         raise RuntimeError('Expected the audited empty ledger; do not overwrite another carry')
     expected = (original.get('previous_carry') or {}).get('carry_id')
     code = """import sqlite3,json
-c=sqlite3.connect('file:/home/sjtu/track/final_work/data/history.sqlite3?mode=ro',uri=True)
+c=sqlite3.connect('file:/home/gpu/track/final_work/data/history.sqlite3?mode=ro',uri=True)
 result=None
 for task_id,plan,execution in c.execute('SELECT id,plan_json,execution_json FROM tasks ORDER BY created_at DESC LIMIT 80'):
  p=json.loads(plan);e=json.loads(execution)
@@ -227,7 +227,7 @@ def main():
             allowed = {sha(desired), manifest.get(source_key, {}).get('source_sha256')}
             if (role, relative) in REVIEWED_BASELINES:
                 allowed.add(REVIEWED_BASELINES[(role, relative)])
-            if remote == '/home/dachuang/grab_visual/placement_extension.py':
+            if remote == '/home/robot/grab_visual/placement_extension.py':
                 allowed.add(manifest.get('services/grasp/pi/placement_extension.py', {}).get('source_sha256'))
             backup = BASES[role] + '/final_work/deployment_backups/runtime_' + stamp
             stage = backup + '/' + str(index) + '_' + PurePosixPath(remote).name
@@ -250,10 +250,10 @@ def main():
             paths = [stage for host, _, _, _, stage in prepared if host == role]
             run(clients[role], shlex.quote(PYTHONS[role]) + ' -m py_compile ' + ' '.join(map(shlex.quote, paths)))
         idle(pi)
-        old_web_pid = run(gpu, 'cat /home/sjtu/track/final_work/agent_web.pid').strip()
+        old_web_pid = run(gpu, 'cat /home/gpu/track/final_work/agent_web.pid').strip()
         if not old_web_pid.isdigit():
             raise RuntimeError('Web PID file invalid; refusing an unverified reload')
-        run(gpu, 'bash /home/sjtu/track/final_work/stop_3090.sh')
+        run(gpu, 'bash /home/gpu/track/final_work/stop_3090.sh')
         stopped.append('gpu')
         stop_verified_web_processes(gpu)
         idle(pi)  # Catch a task started before the web listener finished exiting.
@@ -279,13 +279,13 @@ def main():
                 sftp.posix_rename(LEDGER + '.runtime_update', LEDGER)
                 ledger_changed = True
         # Import checks only: no instance, camera, BLE or hardware action.
-        python(pi, 'pi', "import os;os.chdir('/home/dachuang/dachuang/track');import sys;sys.path[:0]=['/home/dachuang/dachuang/car1.0','/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919',os.getcwd()];from final_work.pi.region_localization import localize_region;from final_work.pi.robot_skills import RobotSkills;print('pi_imports_ok')")
+        python(pi, 'pi', "import os;os.chdir('/home/robot/dachuang/track');import sys;sys.path[:0]=['/home/robot/dachuang/car1.0','/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919',os.getcwd()];from final_work.pi.region_localization import localize_region;from final_work.pi.robot_skills import RobotSkills;print('pi_imports_ok')")
         run(pi, 'sudo -n systemctl start final-work-pi-bridge.service')
         run(pi, 'sudo -n systemctl start final-work-pi-tunnel.service')
         wait_health(pi, 'pi', 'http://127.0.0.1:8780/health')
-        run(gpu, 'bash /home/sjtu/track/final_work/run_3090_background.sh')
+        run(gpu, 'bash /home/gpu/track/final_work/run_3090_background.sh')
         wait_health(gpu, 'gpu', 'http://127.0.0.1:8030/api/health')
-        new_web_pid = run(gpu, 'cat /home/sjtu/track/final_work/agent_web.pid').strip()
+        new_web_pid = run(gpu, 'cat /home/gpu/track/final_work/agent_web.pid').strip()
         if new_web_pid == old_web_pid:
             raise RuntimeError('Web PID did not change; cannot confirm loaded code')
         wait_health(gpu, 'gpu', 'http://127.0.0.1:18780/health')
@@ -315,7 +315,7 @@ def main():
             run(clients['pi'], 'sudo -n systemctl start final-work-pi-bridge.service')
             run(clients['pi'], 'sudo -n systemctl start final-work-pi-tunnel.service')
         if 'gpu' in stopped:
-            run(clients['gpu'], 'bash /home/sjtu/track/final_work/run_3090_background.sh')
+            run(clients['gpu'], 'bash /home/gpu/track/final_work/run_3090_background.sh')
         raise
     finally:
         for client in clients.values():

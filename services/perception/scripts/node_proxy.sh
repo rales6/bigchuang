@@ -46,7 +46,7 @@ proxy_on() {
     export https_proxy="${proxy_url}"
     export HTTP_PROXY="${proxy_url}"
     export HTTPS_PROXY="${proxy_url}"
-    export no_proxy="localhost,127.0.0.1,::1,192.168.55.0/24"
+    export no_proxy="localhost,127.0.0.1,::1,192.0.2.0/24"
     export NO_PROXY="${no_proxy}"
 
     unset proxy_password

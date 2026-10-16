@@ -18,7 +18,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local", username="dachuang", password=password,
+        "pi.example.invalid", username="dachuang", password=password,
         timeout=45, auth_timeout=45, banner_timeout=45,
     )
     try:
@@ -31,7 +31,7 @@ def main() -> None:
         code, before = run(client, checks, timeout=35)
         print("BEFORE_RESTART")
         print(before)
-        address_seen = "64:B7:08:69:9A:E6" in before.upper()
+        address_seen = "AA:BB:CC:DD:EE:01" in before.upper()
         if address_seen:
             print("ESP32_ADVERTISEMENT_SEEN")
             return
@@ -44,7 +44,7 @@ def main() -> None:
         code, after = run(client, restart, timeout=40)
         print("AFTER_RESTART")
         print(after)
-        if "64:B7:08:69:9A:E6" in after.upper():
+        if "AA:BB:CC:DD:EE:01" in after.upper():
             print("ESP32_ADVERTISEMENT_RECOVERED")
         else:
             print("ESP32_ADVERTISEMENT_NOT_SEEN")

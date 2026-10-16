@@ -20,5 +20,5 @@
 - 232 项相关测试通过。
 - 更新后的 realistic seed 0 运行生产状态机仿真：覆盖 94.20%，9 个完整站点，54 个拍摄方向，模拟碰撞 0。合成里程计与中心雷达的限制不变，不等于实车 ICP 已验证。
 - 已于 2026-09-17 15:41 部署；更新三个文件：`map_camera_inspection.py`、`open_space_panorama.py`、`inspect_map.sh`。
-- 树莓派备份：`/home/dachuang/dachuang/car1.0/backups/inspection_route_20260917_154120`。
+- 树莓派备份：`/home/robot/dachuang/car1.0/backups/inspection_route_20260917_154120`。
 - 部署前无活动巡检/建图任务；编译、启动脚本语法、文件哈希和树莓派只读检查通过；原地图哈希不变。未启动巡检或其他硬件动作。

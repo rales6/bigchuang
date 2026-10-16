@@ -8,5 +8,5 @@ for _ in $(seq 1 40); do
   [[ -z "$ALIVE" ]] && break
   sleep .2
 done
-rm -f "${FINAL_WORK_TRACK_ROOT:-/home/sjtu/track}/final_work/qwen_hub.pid"
-exec bash "${FINAL_WORK_TRACK_ROOT:-/home/sjtu/track}/final_work/run_qwen_hub_background.sh"
+rm -f "${FINAL_WORK_TRACK_ROOT:-/home/gpu/track}/final_work/qwen_hub.pid"
+exec bash "${FINAL_WORK_TRACK_ROOT:-/home/gpu/track}/final_work/run_qwen_hub_background.sh"

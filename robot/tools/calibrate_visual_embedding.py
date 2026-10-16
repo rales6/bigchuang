@@ -140,7 +140,7 @@ def run(args: argparse.Namespace) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--reference-root", default="inspections/ble_scene_17")
-    parser.add_argument("--endpoint", default="http://192.168.55.33:8011")
+    parser.add_argument("--endpoint", default="http://192.0.2.20:8011")
     parser.add_argument("--timeout", type=float, default=20.0)
     parser.add_argument("--maximum-queries", type=int, default=0)
     parser.add_argument("--output", default="search_runs/visual_embedding_calibration.json")

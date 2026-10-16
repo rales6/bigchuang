@@ -11,9 +11,9 @@ from grasp_range_integration.tools.deploy_track_web_pick import _connect, HOSTS,
 from grasp_range_integration.tools.deploy_phase1_observation import protected_hashes
 
 ROOT = Path(__file__).resolve().parents[2]
-CAR = '/home/dachuang/dachuang/car1.0'
+CAR = '/home/robot/dachuang/car1.0'
 RELEASE = CAR+'/ble_scene_17_relationship_20260919'
-TRACK = '/home/dachuang/dachuang/track'
+TRACK = '/home/robot/dachuang/track'
 FILES = [
     ('grasp_range_integration/track_web_integration/pi/region_navigation.py',
      TRACK+'/final_work/pi/region_navigation.py',

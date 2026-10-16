@@ -17,6 +17,7 @@ from grasp_range_integration.phase1 import turn_policy, visibility_route_planner
 
 
 class NavigationRotationSupportTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         root = Path(__file__).resolve().parents[2]
         f = json.loads((Path(__file__).parent / 'fixtures/navigation_body_blind_20261002_210504.json').read_text(encoding='utf-8'))
@@ -113,6 +114,7 @@ class NavigationRotationSupportTests(unittest.TestCase):
     def test_entry_and_turn_start_callback_pass_without_eight_zero_frames(self):
         self._assert_entry_and_turn_start_callback_pass()
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_three_run_body_edges_preserve_turn_command_without_forward_recovery(self):
         frames=json.loads((Path(__file__).parent/'fixtures/body_occlusion_20261003.json').read_text(encoding='utf-8'))['frames']
         for frame in frames:

@@ -10,13 +10,12 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-IGNORED = {".git", ".venv", "__pycache__", ".pytest_cache", "runtime", "build", ".gradle"}
+IGNORED = {".git", ".venv", ".local", "__pycache__", ".pytest_cache", "runtime", "build", ".gradle"}
 REQUIRED = ["apps/android/gradlew", "apps/android/app/build.gradle.kts", "firmware/car/main.py",
             "robot/raspberry_pi/object_search_mission.py", "robot/grasp_range_integration/phase1/relationship_find_only_entry.py",
             "services/track/final_work/pi/robot_bridge.py", "services/track/final_work/gpu/app.py",
             "services/track/pursuit/hull_micro_adjust.py", "services/grasp/pi/arm_teach.py",
-            "services/grasp/gpu/arm_teach_model.py", "simulation/car_sim/server.py",
-            "maps/current/ble_scene_17.pgm", "maps/current/semantic_runtime.json"]
+            "services/grasp/gpu/arm_teach_model.py", "simulation/car_sim/server.py"]
 
 
 def external_runtime_artifact(name):
@@ -25,8 +24,12 @@ def external_runtime_artifact(name):
 
 
 def source_files():
-    for path in ROOT.rglob("*"):
-        if path.is_file() and not any(part in IGNORED or part.startswith(".venv-") for part in path.relative_to(ROOT).parts):
+    names = subprocess.check_output(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], cwd=ROOT)
+    for name in dict.fromkeys(names.decode('utf-8').split('\0')):
+        if not name:
+            continue
+        path = ROOT/name
+        if path.is_file() and not any(part in IGNORED or part.startswith(".venv-") for part in Path(name).parts):
             yield path
 
 
@@ -58,7 +61,7 @@ def verify():
             if path.suffix == ".py" and re.search(r"password\s*=\s*(['\"])1\1", text):
                 errors.append("Hard-coded Pi password: " + relative)
     manifest_path = ROOT/"docs/maintenance/source_manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {"files": {}}
     for name, meta in manifest["files"].items():
         if external_runtime_artifact(name):
             # Provenance includes the device's learned state and model file;
@@ -68,7 +71,8 @@ def verify():
         if not (ROOT/name).is_file():
             errors.append("Synced source disappeared: " + name)
     active = ROOT/"maps/current"
-    map_manifest = json.loads((active/"manifest.json").read_text(encoding="utf-8"))
+    map_manifest = (json.loads((active/"manifest.json").read_text(encoding="utf-8"))
+                    if (active/"manifest.json").is_file() else {})
     checked_maps = 0
     for name, expected in map_manifest.get("files", {}).items():
         if Path(name).suffix not in {".pgm", ".yaml", ".json", ".png"}:
@@ -85,7 +89,8 @@ def verify():
     if nested:
         errors.append("Nested Git directories: " + repr(nested))
     return {"python_files_checked": python_count, "current_map_files_verified": checked_maps,
-            "source_manifest_entries": len(manifest["files"]), "errors": errors, "warnings": warnings,
+            "source_manifest_entries": len(manifest["files"]), "private_map_present": bool(map_manifest),
+            "errors": errors, "warnings": warnings,
             "hardware_imported": False, "remote_connections": False}
 
 

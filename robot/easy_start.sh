@@ -9,7 +9,7 @@ exec python3 -m raspberry_pi.autonomous_mapping \
   --enable-motion \
   --link ble \
   --ble-name ESP32-Robot-Car \
-  --ble-address 64:B7:08:69:9A:E6 \
+  --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 \
   --usable-fov 160 \
   --mapping-max-distance 4.0 \

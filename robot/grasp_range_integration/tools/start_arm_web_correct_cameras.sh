@@ -3,7 +3,7 @@
 # order used for the 30-sample arm-teach dataset.
 set -euo pipefail
 
-ARM_WEB_ROOT="${ARM_WEB_ROOT:-/home/dachuang/grab_visual}"
+ARM_WEB_ROOT="${ARM_WEB_ROOT:-/home/robot/grab_visual}"
 export LEFT_CAM="${LEFT_CAM:-2}"
 export RIGHT_CAM="${RIGHT_CAM:-0}"
 

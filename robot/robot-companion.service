@@ -6,8 +6,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=dachuang
-WorkingDirectory=/home/dachuang/dachuang/car1.0
-ExecStart=/home/dachuang/dachuang/car1.0/companion_service.sh
+WorkingDirectory=/home/robot/dachuang/car1.0
+ExecStart=/home/robot/dachuang/car1.0/companion_service.sh
 # The bridge may receive SIGINT when a broad Python cleanup command is used.
 # Keep the Android control endpoint available after such an interruption.
 Restart=always

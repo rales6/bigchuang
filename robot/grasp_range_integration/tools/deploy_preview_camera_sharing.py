@@ -9,13 +9,13 @@ from grasp_range_integration.tools.deploy_track_web_pick import _connect, HOSTS,
 from grasp_range_integration.tools.deploy_phase1_observation import protected_hashes
 
 ROOT = Path(__file__).resolve().parents[2]
-TRACK = '/home/dachuang/dachuang/track'
+TRACK = '/home/robot/dachuang/track'
 SOURCE = ROOT / 'grasp_range_integration/track_web_integration/pi'
 FILES = [
     ('camera_proxy.py', TRACK+'/final_work/pi/camera_proxy.py',
      'ee76e10b5ea4b19888e4db36ee443a9e19be44ab92ea110b2d14951b15b270c2'),
     ('preview_launcher.py', TRACK+'/final_work/pi/preview_launcher.py', None),
-    ('start_grab_web_shared.sh', '/home/dachuang/grab_visual/start_web.sh',
+    ('start_grab_web_shared.sh', '/home/robot/grab_visual/start_web.sh',
      '91793c7a98ee0fc290afe604d632eb3a4403d3065be15d90a0a6314aca2a6fcc'),
 ]
 

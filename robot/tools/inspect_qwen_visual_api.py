@@ -9,14 +9,14 @@ from tools.deploy_object_search import connect, run_checked
 
 def main() -> None:
     client = connect(
-        "202.121.181.124",
+        "198.51.100.20",
         "sjtu",
         os.environ["RTX_SSH_PASSWORD"],
         port=2020,
     )
     try:
         command = (
-            "/home/sjtu/3090/.venv/bin/python -c \""
+            "/home/gpu/3090/.venv/bin/python -c \""
             "from transformers.models.qwen3_vl import modeling_qwen3_vl as m; "
             "import inspect; "
             "print([n for n in dir(m) if 'Vision' in n or 'Visual' in n]); "

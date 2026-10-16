@@ -50,8 +50,8 @@
 
 树莓派部署后默认写入：
 
-- 双摄映射数据：`/home/dachuang/grab_visual/arm_mapping_dataset/`
-- 夹指 Pose 数据：`/home/dachuang/grab_visual/gripper_dataset/`
+- 双摄映射数据：`/home/robot/grab_visual/arm_mapping_dataset/`
+- 夹指 Pose 数据：`/home/robot/grab_visual/gripper_dataset/`
 - 导出：网页 `/api/arm-mapping/export` 和 `/api/gripper-dataset/export`
 
 每个双摄样本保存左右原图、JSON 标注、物体名、所选步长和机械臂状态；导出 ZIP 另含 CSV 和最近训练模型。

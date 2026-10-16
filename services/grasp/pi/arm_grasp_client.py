@@ -7,7 +7,7 @@
 
 用法:
   python -m grab_target.arm_grasp_client \
-    --server ws://192.168.55.33:8020/ws/grasp \
+    --server ws://192.0.2.20:8020/ws/grasp \
     --target "红色的瓶子" \
     --camera-id 0
 """
@@ -25,7 +25,7 @@ import cv2
 import numpy as np
 
 NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
-DEFAULT_BLE_ADDRESS = "64:B7:08:69:9A:E6"
+DEFAULT_BLE_ADDRESS = "AA:BB:CC:DD:EE:01"
 
 try:
     import websockets
@@ -258,7 +258,7 @@ class ArmGraspClient:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Arm Grasp Client (Pi Side)")
-    parser.add_argument("--server", default="ws://192.168.55.33:8020/ws/grasp")
+    parser.add_argument("--server", default="ws://192.0.2.20:8020/ws/grasp")
     parser.add_argument("--target", default="", help="target description for Qwen")
     parser.add_argument("--camera-id", type=int, default=0)
     parser.add_argument("--camera-width", type=int, default=640)

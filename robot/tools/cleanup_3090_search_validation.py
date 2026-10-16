@@ -12,7 +12,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "202.121.181.124",
+        "198.51.100.20",
         port=2020,
         username="sjtu",
         password=password,

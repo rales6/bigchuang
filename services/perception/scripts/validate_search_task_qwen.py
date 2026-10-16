@@ -20,7 +20,7 @@ from qwen_grounded_tracker.semantic_task_planner import QwenTransformersBackend 
 
 def main() -> None:
     semantic = json.loads(
-        Path("/home/sjtu/car_runtime/ble_scene_17_semantics_qwen.json").read_text(
+        Path("/home/gpu/car_runtime/ble_scene_17_semantics_qwen.json").read_text(
             encoding="utf-8"
         )
     )

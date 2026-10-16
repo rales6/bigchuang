@@ -28,8 +28,8 @@ FILES = (
 
 
 def main() -> None:
-    client = connect("172.18.14.74", "dachuang", os.environ["PI_SSH_PASSWORD"])
-    remote_root = "/home/dachuang/dachuang/car1.0"
+    client = connect("192.0.2.11", "dachuang", os.environ["PI_SSH_PASSWORD"])
+    remote_root = "/home/robot/dachuang/car1.0"
     try:
         run_checked(
             client,

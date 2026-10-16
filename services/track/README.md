@@ -12,13 +12,13 @@
 - 树莓派桥接层复用现有程序，不接收任意 shell：
   - `raspberry_pi.companion_service:8770`：建图与安全停止；
   - `pursuit/run_visual_pursuit.py` + 3090 `:8021`：识别目标并持续追踪靠近；
-  - `/home/dachuang/grab_visual/web_app.py` + 3090 `:8020`：双目预览、视觉伺服抓取、释放；
+  - `/home/robot/grab_visual/web_app.py` + 3090 `:8020`：双目预览、视觉伺服抓取、释放；
   - 雷达实时地图 `:8766`：地图 PNG、位姿与定位质量。
 - Qwen 只产生高层、白名单化的结构计划；低层运动仍由现有确定性状态机与雷达保护完成。
 
 ## 地图标注与导航接入
 
-- 正式数据源固定为只读目录 `/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/`。运行时语义读取 `semantic_runtime.json`，网页默认显示 `semantic_relationship_map_20260919.png`，定位/A* 使用同目录且哈希一致的 `ble_scene_17.pgm/.yaml`。
+- 正式数据源固定为只读目录 `/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/`。运行时语义读取 `semantic_runtime.json`，网页默认显示 `semantic_relationship_map_20260919.png`，定位/A* 使用同目录且哈希一致的 `ble_scene_17.pgm/.yaml`。
 - `semantic_localization_landmarks.json` 只供既有视觉定位模块消歧；正式发布记录中已验证定位地标数仍为 0，因此系统不会把未审核候选当成强定位或抓取坐标。
 - `semantic_combined_20260919.*` 仅作为旧自动投影的追溯材料，不再作为网页默认层或当前布局。
 - 3090 的共享 Qwen Hub 在原 8010 服务上增加 `/mission/command`，复用同一份模型把自然语言转换为目标、地图锚点和搜索区域，不启动 8011 或第三份 Qwen。
@@ -52,27 +52,27 @@ Qwen、通用 DeepSeek 与 GPT 兼容项可使用服务器端密钥。单独的 
 先启动树莓派桥接（默认安全模式，不允许真实建图/抓取，视觉追踪自动加 `--dry-run`）：
 
 ```bash
-cd /home/dachuang/dachuang/track
+cd /home/robot/dachuang/track
 bash final_work/run_pi_background.sh
 ```
 
 3090 首次部署先把原 8010 语义服务切换为兼容的共享 Qwen Hub，然后启动网页：
 
 ```bash
-cd /home/sjtu/track
+cd /home/gpu/track
 bash final_work/run_qwen_hub_background.sh
 bash final_work/enforce_two_qwen.sh
 bash final_work/run_3090_background.sh
 ```
 
-浏览器打开：`http://192.168.55.33:8030/`
+浏览器打开：`http://192.0.2.20:8030/`
 
 现有感知服务应保持：
 
-- `http://192.168.55.33:8010/`：共享 Qwen 语义地图服务；`/agent/plan` 为规划接口；
+- `http://192.0.2.20:8010/`：共享 Qwen 语义地图服务；`/agent/plan` 为规划接口；
 - `8011`：final_work 模式下停止，避免重复加载 Qwen；
-- `http://192.168.55.33:8020/health`：机械臂抓取服务；
-- `http://192.168.55.33:8021/`：视觉追踪服务。
+- `http://192.0.2.20:8020/health`：机械臂抓取服务；
+- `http://192.0.2.20:8021/`：视觉追踪服务。
 
 ## 实车模式
 
@@ -80,7 +80,7 @@ bash final_work/run_3090_background.sh
 
 ```bash
 # 树莓派
-cd /home/dachuang/dachuang/track
+cd /home/robot/dachuang/track
 bash final_work/stop_pi.sh
 export FINAL_WORK_ENABLE_HARDWARE=1
 export FINAL_WORK_HARDWARE_TOKEN='替换为随机长字符串'
@@ -89,7 +89,7 @@ bash final_work/run_pi_background.sh
 
 ```bash
 # 3090
-cd /home/sjtu/track
+cd /home/gpu/track
 bash final_work/stop_3090.sh
 export FINAL_WORK_HARDWARE_TOKEN='同一个随机长字符串'
 bash final_work/run_3090_background.sh
@@ -99,12 +99,12 @@ bash final_work/run_3090_background.sh
 
 ## 日志与历史
 
-- Pi 桥接和受管任务日志：`/home/dachuang/dachuang/track/final_work/logs/`
-- 视觉追踪每次任务详细日志：`/home/dachuang/dachuang/track/logs/pursuit/`
-- Pi 抓取日志：`/home/dachuang/grab_visual/logs/`
-- 3090 抓取日志：`/home/sjtu/grab_visual/logs/`
-- 网页/Qwen 服务日志：启动命令的标准输出，部署脚本保存到 `/home/sjtu/track/final_work/logs/`
-- 聊天与计划：`/home/sjtu/track/final_work/data/history.sqlite3`（SQLite WAL 模式）
+- Pi 桥接和受管任务日志：`/home/robot/dachuang/track/final_work/logs/`
+- 视觉追踪每次任务详细日志：`/home/robot/dachuang/track/logs/pursuit/`
+- Pi 抓取日志：`/home/robot/grab_visual/logs/`
+- 3090 抓取日志：`/home/gpu/grab_visual/logs/`
+- 网页/Qwen 服务日志：启动命令的标准输出，部署脚本保存到 `/home/gpu/track/final_work/logs/`
+- 聊天与计划：`/home/gpu/track/final_work/data/history.sqlite3`（SQLite WAL 模式）
 
 日志页读取当前 Pi 受管进程末尾约 24 KB；完整排障仍以对应目录中的时间戳文件为准。
 
@@ -125,16 +125,16 @@ bash final_work/run_3090_background.sh
 
 ```bash
 # 树莓派
-cd /home/dachuang/dachuang/track && bash final_work/stop_pi.sh
+cd /home/robot/dachuang/track && bash final_work/stop_pi.sh
 
 # 3090
-cd /home/sjtu/track && bash final_work/stop_3090.sh
+cd /home/gpu/track && bash final_work/stop_3090.sh
 ```
 
 如需恢复未经包装的原 8010 服务：
 
 ```bash
-cd /home/sjtu/track && bash final_work/restore_original_qwen.sh
+cd /home/gpu/track && bash final_work/restore_original_qwen.sh
 ```
 # 用户设备上的 DeepSeek Flash
 
@@ -144,7 +144,7 @@ cd /home/sjtu/track && bash final_work/restore_original_qwen.sh
 python final_work/tools/deepseek_local_bridge.py
 ```
 
-本机桥只监听 `127.0.0.1:8765`，不保存或打印密钥，并只接受来自 `http://192.168.55.33:8030` 的网页请求。3090 只接收 DeepSeek 返回的意图 JSON，并再次进行白名单校验和确定性计划编译。
+本机桥只监听 `127.0.0.1:8765`，不保存或打印密钥，并只接受来自 `http://192.0.2.20:8030` 的网页请求。3090 只接收 DeepSeek 返回的意图 JSON，并再次进行白名单校验和确定性计划编译。
 
 # 双目左右校准
 

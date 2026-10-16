@@ -12,7 +12,7 @@ from grasp_range_integration.tools.deploy_preview_camera_sharing import idle
 from grasp_range_integration.tools.deploy_phase1_observation import protected_hashes
 
 ROOT = Path(__file__).resolve().parents[2]
-TRACK = '/home/dachuang/dachuang/track'
+TRACK = '/home/robot/dachuang/track'
 FILES = {
     'robot_skills.py': '7fd4b2ff3a53601fcca358419f76f46dd020dd5caaf8ada47b57dc2770243416',
     'robot_bridge.py': '64f987160be593e61c364328b7c0915acc4c06994154bbd7b2e6a0600322cbbc',
@@ -50,7 +50,7 @@ def main():
         with client.open_sftp() as s:
             before = protected_hashes(s)
             frozen = {path: sha(_read(s, path)) for path in (
-                TRACK+'/pursuit/hull_micro_adjust.py', '/home/dachuang/grab_visual/arm_teach.py')}
+                TRACK+'/pursuit/hull_micro_adjust.py', '/home/robot/grab_visual/arm_teach.py')}
             ledger_path = TRACK+'/final_work/data/robot_skills_state.json'
             ledger = _read(s, ledger_path)
             prepared = []
@@ -111,7 +111,7 @@ result=unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.loadT
 if not result.wasSuccessful():raise SystemExit(1)
 print('deployed_mocked_tests_passed='+str(result.testsRun))
 '''
-            env = 'PYTHONPATH='+shlex.quote(TRACK+':/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919:/home/dachuang/dachuang/car1.0')
+            env = 'PYTHONPATH='+shlex.quote(TRACK+':/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919:/home/robot/dachuang/car1.0')
             test_output = _remote(client, env+' '+HOSTS['pi']['python']+' -c '+shlex.quote(test_code)+' '+shlex.quote(backup+'/test_grasp_hull_recheck.py'))
             print(test_output)
             report['deployed_mocked_tests_passed'] = int(re.search(

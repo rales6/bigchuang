@@ -680,7 +680,7 @@ Windows 远程摄像头网页：
 ```powershell
 cd F:\bigchuang\windows摄像头
 .\.venv\Scripts\Activate.ps1
-python .\scripts\run_web_console.py --camera-mode remote --server ws://192.168.55.33:8000/camera_ws --host 127.0.0.1 --port 7860
+python .\scripts\run_web_console.py --camera-mode remote --server ws://192.0.2.20:8000/camera_ws --host 127.0.0.1 --port 7860
 ```
 
 如果走 SSH 隧道，把 `--server` 改成 `ws://127.0.0.1:8001/camera_ws`，网页会自动使用 `http://127.0.0.1:8001/stream.mjpg`。

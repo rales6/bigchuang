@@ -9,7 +9,7 @@
 在 Windows PowerShell 连接 3090：
 
 ```powershell
-ssh -i F:/SSHKeys/sjtu_ed25519 sjtu@192.168.55.33
+ssh -i F:/SSHKeys/sjtu_ed25519 sjtu@192.0.2.20
 ```
 
 在 3090 上执行：
@@ -38,7 +38,7 @@ cd ~/track
 
 浏览器打开：
 
-<http://192.168.55.33:8021/>
+<http://192.0.2.20:8021/>
 
 树莓派未启动时网页没有双摄实时画面；树莓派开始上传后，网页会显示左右画面、
 追踪框、左右掩码目标点、感知帧率、相机/上传帧率、深度和车辆状态。网页中的
@@ -47,7 +47,7 @@ cd ~/track
 健康检查：
 
 ```text
-http://192.168.55.33:8021/health
+http://192.0.2.20:8021/health
 ```
 
 ## 3. 启动树莓派（先测试）
@@ -55,7 +55,7 @@ http://192.168.55.33:8021/health
 连接树莓派，SSH 提示时输入密码：
 
 ```powershell
-ssh dachuang@172.18.14.74
+ssh dachuang@192.0.2.11
 ```
 
 在树莓派执行无电机测试：
@@ -64,8 +64,8 @@ ssh dachuang@172.18.14.74
 cd ~/dachuang/track
 PYTHONUNBUFFERED=1 ~/dachuang/.venv/bin/python pursuit/run_visual_pursuit.py \
   --instruction "追踪那个蓝色瓶子" \
-  --server-http http://192.168.55.33:8021 \
-  --server-ws ws://192.168.55.33:8021/pursuit_ws \
+  --server-http http://192.0.2.20:8021 \
+  --server-ws ws://192.0.2.20:8021/pursuit_ws \
   --dry-run
 ```
 
@@ -79,8 +79,8 @@ PYTHONUNBUFFERED=1 ~/dachuang/.venv/bin/python pursuit/run_visual_pursuit.py \
 cd ~/dachuang/track
 PYTHONUNBUFFERED=1 ~/dachuang/.venv/bin/python pursuit/run_visual_pursuit.py \
   --instruction "追踪那个蓝色瓶子" \
-  --server-http http://192.168.55.33:8021 \
-  --server-ws ws://192.168.55.33:8021/pursuit_ws \
+  --server-http http://192.0.2.20:8021 \
+  --server-ws ws://192.0.2.20:8021/pursuit_ws \
   --esp32
 ```
 

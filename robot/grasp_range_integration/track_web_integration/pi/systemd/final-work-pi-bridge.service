@@ -6,9 +6,9 @@ After=network-online.target bluetooth.service
 [Service]
 Type=simple
 User=dachuang
-WorkingDirectory=/home/dachuang/dachuang/track
+WorkingDirectory=/home/robot/dachuang/track
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/bin/bash /home/dachuang/dachuang/track/final_work/start_pi.sh
+ExecStart=/bin/bash /home/robot/dachuang/track/final_work/start_pi.sh
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=8

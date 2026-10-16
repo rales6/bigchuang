@@ -21,7 +21,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local",
+        "pi.example.invalid",
         username="dachuang",
         password=os.environ["PI_SSH_PASSWORD"],
         timeout=45,

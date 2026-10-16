@@ -10,6 +10,7 @@ from grasp_range_integration.phase1.rotation_guard import assess_rotation, body_
 
 
 class ConfirmedBodyEdgeTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         self.record=json.loads((Path(__file__).parent/'fixtures/body_confirmed_stop_20260927_162135.json').read_text(encoding='utf-8'))
         f=self.record['frame']

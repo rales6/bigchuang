@@ -251,6 +251,7 @@ class LockedRecoveryTests(unittest.TestCase):
 
 class RealCabinetMapReplayTests(unittest.TestCase):
     """Replay the actual failed geometry; never connect cameras/motors/API."""
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         self.saved = (planner.LATEST_ROUTE, planner.LATEST_KNOWN_MAP,
                       planner.ACTIVE_VIEW, list(planner.VISITED_POINTS), planner.OBSERVATIONS_COMPLETED)
@@ -358,6 +359,7 @@ class RealCabinetMapReplayTests(unittest.TestCase):
 class SingleEyePriorityReplayTests(unittest.TestCase):
     """The 210758 trace must issue yaw, not 0deg/0m then global replan."""
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         LockedRecoveryTests.setUp(self)
         self.fixture = json.loads((Path(__file__).parent /

@@ -925,11 +925,11 @@ confidence 必须是你对首选观察点优于其他候选的真实置信度：
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Shared Qwen semantic-map and Agent hub")
-    parser.add_argument("--existing-script", default="/home/sjtu/3090/scripts/run_qwen_landmark_server.py")
-    parser.add_argument("--source-root", default="/home/sjtu/3090/src")
-    parser.add_argument("--model-path", default="/home/sjtu/3090/models/qwen/Qwen3-VL-2B-Instruct")
+    parser.add_argument("--existing-script", default="/home/gpu/3090/scripts/run_qwen_landmark_server.py")
+    parser.add_argument("--source-root", default="/home/gpu/3090/src")
+    parser.add_argument("--model-path", default="/home/gpu/3090/models/qwen/Qwen3-VL-2B-Instruct")
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--pi-url", default="http://172.18.14.74:8766")
+    parser.add_argument("--pi-url", default="http://192.0.2.11:8766")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8010)
     parser.add_argument("--mock", action="store_true")

@@ -18,7 +18,7 @@ def read(client, command):
 
 
 def main():
-    pi = connect("dachuang.local", "dachuang", os.environ["PI_SSH_PASSWORD"])
+    pi = connect("pi.example.invalid", "dachuang", os.environ["PI_SSH_PASSWORD"])
     _, pi_out, pi_err = read(
         pi,
         "echo PI_PROCESSES; pgrep -af 'autonomous_mapping|map_camera_inspection|object_search_mission|ffmpeg' || true; "
@@ -28,7 +28,7 @@ def main():
         "echo PI_BLE_SCAN; timeout 8s sudo btmgmt --index 0 find -l 2>/dev/null | grep -A3 -B1 'ESP32-Robot-Car' || true",
     )
     pi.close()
-    rtx = connect("202.121.181.124", "sjtu", os.environ["RTX_SSH_PASSWORD"], port=2020)
+    rtx = connect("198.51.100.20", "sjtu", os.environ["RTX_SSH_PASSWORD"], port=2020)
     _, rtx_out, rtx_err = read(
         rtx,
         "echo RTX_PROCESSES; pgrep -af 'run_stage1_perception_server|8011' || true; "

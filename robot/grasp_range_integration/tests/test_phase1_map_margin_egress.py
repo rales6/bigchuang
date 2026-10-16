@@ -16,6 +16,7 @@ from grasp_range_integration.phase1 import visibility_route_planner as planner, 
 
 
 class MapMarginEgressTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUp(self):
         f=json.loads((Path(__file__).parent/'fixtures/map_margin_stop_20261002.json').read_text(encoding='utf-8'))
         self.assessment=copy.deepcopy(f['assessment'])
