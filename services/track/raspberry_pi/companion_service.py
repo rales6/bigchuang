@@ -75,7 +75,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "bluetooth": {
         "device_name": "ESP32-Robot-Car",
-        "device_address": "64:B7:08:69:9A:E6",
+        "device_address": "AA:BB:CC:DD:EE:01",
         "auto_recover": True,
         "failure_threshold": 3,
         "max_recovery_attempts": 2,

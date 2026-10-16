@@ -67,7 +67,7 @@ class SettingsStore(context: Context) {
             ),
             bluetooth = BluetoothConfiguration(
                 deviceName = prefs.getString("ble_device_name", "ESP32-Robot-Car") ?: "ESP32-Robot-Car",
-                deviceAddress = prefs.getString("ble_device_address", "64:B7:08:69:9A:E6") ?: "64:B7:08:69:9A:E6",
+                deviceAddress = prefs.getString("ble_device_address", "AA:BB:CC:DD:EE:01") ?: "AA:BB:CC:DD:EE:01",
                 autoRecover = prefs.getBoolean("ble_auto_recover", true),
                 failureThreshold = prefs.getInt("ble_failure_threshold", 3),
                 maxRecoveryAttempts = prefs.getInt("ble_max_recovery_attempts", 2),
@@ -81,7 +81,7 @@ class SettingsStore(context: Context) {
     private fun storedBaseUrl(): String {
         val fallback = AppSettings().baseUrl
         val stored = prefs.getString("base_url", fallback) ?: fallback
-        return if (stored == "http://192.168.1.100:8000") fallback else stored
+        return if (stored == "http://192.0.2.100:8000") fallback else stored
     }
 
     fun save(value: AppSettings) {

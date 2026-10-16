@@ -26,7 +26,7 @@ python3 -u -m raspberry_pi.map_camera_inspection \
   --semantic-map maps/ble_scene_17_semantics_qwen.json \
   --ignore-verified-semantic-views \
   --skip-classified-semantic-components \
-  --online-qwen-url http://192.168.55.33:8010/landmarks \
+  --online-qwen-url http://192.0.2.20:8010/landmarks \
   --online-qwen-timeout-seconds 90 \
   --online-qwen-min-confidence 0.80 \
   --online-qwen-confirmations 2 \
@@ -66,7 +66,7 @@ python3 -u -m raspberry_pi.map_camera_inspection \
   --output inspections/ble_scene_17 \
   --link ble \
   --ble-name ESP32-Robot-Car \
-  --ble-address 64:B7:08:69:9A:E6 \
+  --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 \
   --lidar-offset-x 0.14 \
   --lidar-offset-y 0.0 \

@@ -21,7 +21,7 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE = "/home/dachuang/dachuang/car1.0"
+REMOTE = "/home/robot/dachuang/car1.0"
 FILES = (
     "raspberry_pi/known_map_navigation.py",
     "raspberry_pi/map_camera_inspection.py",
@@ -176,7 +176,7 @@ print(json.dumps({'target_id': target.target_id, 'view': target.view_xy_m,
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="dachuang.local")
+    parser.add_argument("--host", default="pi.example.invalid")
     parser.add_argument("--deploy", action="store_true")
     args = parser.parse_args()
 

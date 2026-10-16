@@ -65,7 +65,7 @@ def main():
         idle(clients["pi"])
         with clients["pi"].open_sftp() as sftp:
             for name in ("object_search_mission.py", "known_map_navigation.py"):
-                path = "/home/dachuang/dachuang/car1.0/raspberry_pi/" + name
+                path = "/home/robot/dachuang/car1.0/raspberry_pi/" + name
                 protected[path] = sha(_read(sftp, path))
         files = []
         for side, names in (("pi", ["robot_bridge.py", "map_navigation_adapter.py"]),
@@ -81,7 +81,7 @@ def main():
         for name, local in (("entry", "relationship_find_only_entry.py"), ("visibility", "visibility_route_planner.py")):
             meta = manifest["pi"][name]
             files.append(("pi", meta["path"], (ROOT / "phase1" / local).read_bytes(), meta["sha256"]))
-        files.append(("pi", "/home/dachuang/grab_visual/placement_extension.py",
+        files.append(("pi", "/home/robot/grab_visual/placement_extension.py",
                       (SOURCE / "pi/placement_extension.py").read_bytes(), None))
         for side in clients:
             files.append((side, HOSTS[side]["root"] + "/final_work/ROBOT_SKILLS.md",
@@ -139,7 +139,7 @@ def main():
                     " ".join(shlex.quote(path) for path in paths))
         idle(clients["pi"])
         if args.activate:
-            _remote(clients["gpu"], "bash /home/sjtu/track/final_work/stop_3090.sh")
+            _remote(clients["gpu"], "bash /home/gpu/track/final_work/stop_3090.sh")
             stopped.append("gpu")
             _remote(clients["pi"], "sudo -n systemctl stop final-work-pi-bridge.service")
             stopped.append("pi")
@@ -163,7 +163,7 @@ def main():
             _remote(clients["pi"], "sudo -n systemctl start final-work-pi-bridge.service")
             # Requires=bridge stops the reverse tunnel during a bridge reload.
             _remote(clients["pi"], "sudo -n systemctl start final-work-pi-tunnel.service")
-            _remote(clients["gpu"], "bash /home/sjtu/track/final_work/run_3090_background.sh")
+            _remote(clients["gpu"], "bash /home/gpu/track/final_work/run_3090_background.sh")
             stopped.clear()
         print(json.dumps({"deployed": [item[1] for item in prepared], "backup": "robot_skills_" + stamp,
                           "frozen_navigation_unchanged": True, "services_reloaded": args.activate,
@@ -179,7 +179,7 @@ def main():
             _remote(clients["pi"], "sudo -n systemctl start final-work-pi-bridge.service")
             _remote(clients["pi"], "sudo -n systemctl start final-work-pi-tunnel.service")
         if "gpu" in stopped:
-            _remote(clients["gpu"], "bash /home/sjtu/track/final_work/run_3090_background.sh")
+            _remote(clients["gpu"], "bash /home/gpu/track/final_work/run_3090_background.sh")
         raise
     finally:
         for client in clients.values(): client.close()

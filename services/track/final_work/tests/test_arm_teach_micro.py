@@ -15,7 +15,7 @@ try:
         from integrations.grab_visual import arm_teach
     except ImportError:
         import importlib.util
-        deployed = Path("/home/dachuang/grab_visual/arm_teach.py")
+        deployed = Path("/home/robot/grab_visual/arm_teach.py")
         spec = importlib.util.spec_from_file_location("deployed_arm_teach", deployed)
         if spec is None or spec.loader is None:
             raise ImportError("Pi arm_teach.py unavailable")

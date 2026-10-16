@@ -35,7 +35,7 @@ from typing import Any
 # 学习数据保存路径
 LEARNED_RESPONSE_PATH = os.environ.get(
     "GRASP_LEARNED_PATH",
-    "/home/sjtu/grab_visual/learned_response.json",
+    "/home/gpu/grab_visual/learned_response.json",
 )
 
 AXIS_NAMES = ["camL_x", "camL_y", "camR_x", "camR_y"]

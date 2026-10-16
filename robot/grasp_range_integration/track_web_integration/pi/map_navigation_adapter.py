@@ -19,13 +19,13 @@ from urllib import request as urlrequest
 import uuid
 
 
-CAR1_ROOT = Path(os.environ.get("FINAL_WORK_CAR1_ROOT", "/home/dachuang/dachuang/car1.0"))
-TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/dachuang/dachuang/track"))
+CAR1_ROOT = Path(os.environ.get("FINAL_WORK_CAR1_ROOT", "/home/robot/dachuang/car1.0"))
+TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/robot/dachuang/track"))
 SEMANTIC_RELEASE = Path(os.environ.get(
     "FINAL_WORK_SEMANTIC_RELEASE",
     str(CAR1_ROOT / "ble_scene_17_relationship_20260919"),
 ))
-SEARCH_API_URL = os.environ.get("FINAL_WORK_SEARCH_API_URL", "http://192.168.55.33:8010").rstrip("/")
+SEARCH_API_URL = os.environ.get("FINAL_WORK_SEARCH_API_URL", "http://192.0.2.20:8010").rstrip("/")
 RUNTIME_ROOT = Path(os.environ.get(
     "FINAL_WORK_NAVIGATION_DATA_DIR",
     str(TRACK_ROOT / "final_work" / "data" / "navigation"),
@@ -334,7 +334,7 @@ class MapNavigationAdapter:
         else:
             command += [
                 "--enable-motion", "--link", "ble",
-                "--ble-name", "ESP32-Robot-Car", "--ble-address", "64:B7:08:69:9A:E6",
+                "--ble-name", "ESP32-Robot-Car", "--ble-address", "AA:BB:CC:DD:EE:01",
                 "--lidar-port", "/dev/ttyACM0",
                 "--speed", "240", "--slow-speed", "230",
                 "--max-drive-speed", "460", "--drive-speed-step", "60",

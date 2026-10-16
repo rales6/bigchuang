@@ -32,6 +32,7 @@ def installed_scan(start=100, first=147):
 
 
 class BodyOcclusionTests(unittest.TestCase):
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_four_unmodified_full_recorded_scans(self):
         data=json.loads((Path(__file__).parent/'fixtures/body_occlusion_20261002.json').read_text())
         self.assertEqual(data['source_run'],'20261002_155646')
@@ -81,6 +82,7 @@ class BodyOcclusionTests(unittest.TestCase):
         keep = (np.degrees(angles) < 170) | (np.degrees(angles) > 195)
         self.assertFalse(body_supported_blind_arcs(angles[keep], body[keep], exterior)[1])
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_three_runs_unmodified_scans_and_actual_map(self):
         from raspberry_pi.known_map_navigation import KnownOccupancyMap
         from grasp_range_integration.phase1.glass_boundary_guard import DEFAULT_CONFIG, attach_boundaries

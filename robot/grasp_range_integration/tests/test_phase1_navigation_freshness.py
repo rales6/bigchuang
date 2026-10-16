@@ -114,6 +114,7 @@ class FreshnessPolicyTests(unittest.TestCase):
         self.assertFalse(self.ready())  # Original absolute-fit scan now too old.
         self.assertEqual(self.calls,[self.original])
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_real_193306_timing_trace_no_longer_raises_glass_scan_stale(self):
         rows=[json.loads(line) for line in (Path(__file__).parent/'fixtures/navigation_start_20260926_193306.jsonl').read_text(encoding='utf-8').splitlines()]
         delivered=[r for r in rows if r['type']=='fresh_scan_delivered'][-1]

@@ -17,8 +17,8 @@ import time
 import paramiko
 
 ROOT = Path(__file__).resolve().parents[1]
-PI_ROOT = '/home/dachuang/dachuang/car1.0'
-GPU_ROOT = '/home/sjtu/3090'
+PI_ROOT = '/home/robot/dachuang/car1.0'
+GPU_ROOT = '/home/gpu/3090'
 READ_ONLY_INSPECTION = ['raspberry_pi/map_camera_inspection.py', 'raspberry_pi/open_space_panorama.py', 'inspect_map.sh']
 
 
@@ -114,9 +114,9 @@ def attach_quality_stage(report_path):
     if not report.get('job_started'):
         raise ValueError('No inference job recorded')
     job = report['job']
-    if not job.startswith('/home/sjtu/car_inspection_jobs/object_inventory_'):
+    if not job.startswith('/home/gpu/car_inspection_jobs/object_inventory_'):
         raise ValueError('Unexpected job path')
-    client = connect('202.121.181.124', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
+    client = connect('198.51.100.20', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
     try:
         if report.get('quality_stage_started'):
             print(json.dumps({'already_attached': True, 'pid': report['quality_pid']}, ensure_ascii=False), flush=True)
@@ -151,9 +151,9 @@ def deploy_and_start(run_id):
               'task_localization_live_enabled': False, 'job_started': False}
     clients = []
     try:
-        pi = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+        pi = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
         clients.append(pi)
-        gpu = connect('202.121.181.124', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
+        gpu = connect('198.51.100.20', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
         clients.append(gpu)
         active_jobs = command(gpu, "pgrep -af '[r]un_semantic_object_inventory.py' || true")
         if active_jobs:
@@ -184,7 +184,7 @@ def deploy_and_start(run_id):
         report['gpu_backup'] = gpu_backup
         report['gpu_import_check'] = command(gpu, shlex.join([GPU_ROOT + '/.venv/bin/python',
             GPU_ROOT + '/scripts/run_semantic_object_inventory.py', '--help']))
-        job = '/home/sjtu/car_inspection_jobs/object_inventory_' + stamp
+        job = '/home/gpu/car_inspection_jobs/object_inventory_' + stamp
         report['job'] = job
         with pi.open_sftp() as source, gpu.open_sftp() as destination:
             photos = PI_ROOT + '/inspections/ble_scene_17/' + run_id

@@ -19,7 +19,7 @@ def main():
     import paramiko
     client=paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect('dachuang.local',username='dachuang',password=os.environ['PI_SSH_PASSWORD'],
+    client.connect('pi.example.invalid',username='dachuang',password=os.environ['PI_SSH_PASSWORD'],
                    look_for_keys=False,allow_agent=False,timeout=15)
     try:
         with client.open_sftp() as sftp:

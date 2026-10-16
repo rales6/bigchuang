@@ -8,7 +8,7 @@ flock -n 9 || { echo "已有巡检/联合建图任务运行，请先结束它。
 mkdir -p inspection_logs
 exec > >(tee -a "inspection_logs/joint_mapping_$(date +%Y%m%d_%H%M%S).log") 2>&1
 exec python3 -u -m raspberry_pi.joint_mapping \
-  --enable-motion --link ble --ble-address 64:B7:08:69:9A:E6 \
+  --enable-motion --link ble --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 --usable-fov 160 --mapping-max-distance 4 \
   --coarse-map maps/ble_scene_17.pgm \
   --stationary-map-distance 0.35 --stationary-map-angle 20 \

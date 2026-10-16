@@ -15,7 +15,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "dachuang.local", username="dachuang",
+        "pi.example.invalid", username="dachuang",
         password=os.environ.get("PI_SSH_PASSWORD") or getpass.getpass("Pi SSH password: "),
         timeout=30,
     )
@@ -29,7 +29,7 @@ fuser -v /dev/video0 /dev/video2 2>/dev/null || true
 echo '=== SERVICE ==='
 systemctl is-active robot-companion.service || true
 echo '=== BLUEZ ==='
-bluetoothctl info 64:B7:08:69:9A:E6 2>/dev/null | grep -E 'Name:|Connected:|ServicesResolved:' || true
+bluetoothctl info AA:BB:CC:DD:EE:01 2>/dev/null | grep -E 'Name:|Connected:|ServicesResolved:' || true
 echo '=== LATEST SERVICE LOG ==='
 latest=$(ls -1t service_runs/*.log 2>/dev/null | head -1)
 echo "$latest"
@@ -59,7 +59,7 @@ ps -eo pid,etime,stat,cmd | grep -E 'map_camera_inspection|object_search_mission
 echo '=== DEVICE HOLDERS ==='
 fuser -v /dev/ttyACM0 /dev/video0 /dev/video2 2>/dev/null || true
 echo '=== BLUEZ ==='
-bluetoothctl info 64:B7:08:69:9A:E6 2>/dev/null | grep -E 'Name:|Connected:|ServicesResolved:' || true
+bluetoothctl info AA:BB:CC:DD:EE:01 2>/dev/null | grep -E 'Name:|Connected:|ServicesResolved:' || true
 echo '=== LATEST INSPECTION ==='
 latest=$(find inspections/ble_scene_17 -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
 echo "$latest"

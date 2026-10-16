@@ -67,7 +67,7 @@ outputs/stereo_calibration_samples/
 可以直接复制整个采集目录到 3090：
 
 ```bash
-scp -r outputs/stereo_calibration_samples sjtu@192.168.55.33:~/3090/outputs/
+scp -r outputs/stereo_calibration_samples sjtu@192.0.2.20:~/3090/outputs/
 ```
 
 如果你在 Windows 上中转，也可以把这个目录放到：

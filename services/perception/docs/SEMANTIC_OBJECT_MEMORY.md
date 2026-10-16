@@ -47,4 +47,4 @@ reviews JSON 顶层填实际 `map_sha256`；objects 中用输出的真实 ID，�
 
 应读取 `results/quality_filtered/semantic_object_memory.json`，而不是未经质量过滤的原始聚类。过滤后仍有 150 个候选聚类，不是 150 件确定物体。世界位置仍需校准/核实，没有强定位锚点。
 
-树莓派独立结果目录：`/home/dachuang/dachuang/car1.0/semantic_maps/qwen_reannotation_20260918_142739`。独立任务定位模块已部署并在 `.venv-pi` 下验证导入、依赖和实际语义文件加载；任务照片 HTTP 接口改用标准库，不需要安装 requests。未启动车辆运动、未替换原标注巡检定位流程、未更改原 PGM/YAML。
+树莓派独立结果目录：`/home/robot/dachuang/car1.0/semantic_maps/qwen_reannotation_20260918_142739`。独立任务定位模块已部署并在 `.venv-pi` 下验证导入、依赖和实际语义文件加载；任务照片 HTTP 接口改用标准库，不需要安装 requests。未启动车辆运动、未替换原标注巡检定位流程、未更改原 PGM/YAML。

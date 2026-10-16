@@ -17,6 +17,7 @@ class RepositoryTests(unittest.TestCase):
                                 capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout.strip(), 'maps/current/semantic_runtime.json: text: unset')
 
+    @unittest.skipUnless((ROOT/'maps/current/manifest.json').is_file(), 'Requires internal map bundle')
     def test_current_map_and_semantic_runtime_exist(self):
         base = ROOT/"maps/current"
         self.assertTrue((base/"ble_scene_17.pgm").read_bytes().startswith(b"P5"))
@@ -56,6 +57,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(result, {**target,"s2":1740})
         self.assertEqual(target["s0"], result["s0"])
 
+    @unittest.skipUnless((ROOT/'docs/maintenance/source_manifest.json').is_file(), 'Requires internal provenance bundle')
     def test_source_manifest_includes_both_machines(self):
         manifest = json.loads((ROOT/"docs/maintenance/source_manifest.json").read_text(encoding="utf-8"))
         self.assertEqual({m["origin"] for m in manifest["files"].values()}, {"local","pi","gpu"})

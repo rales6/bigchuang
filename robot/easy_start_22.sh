@@ -16,7 +16,7 @@ fi
 OUTPUT="${OUTPUT:-maps/original_map}"
 LIDAR_PORT="${LIDAR_PORT:-/dev/ttyACM0}"
 BLE_NAME="${BLE_NAME:-ESP32-Robot-Car}"
-BLE_ADDRESS="${BLE_ADDRESS:-64:B7:08:69:9A:E6}"
+BLE_ADDRESS="${BLE_ADDRESS:-AA:BB:CC:DD:EE:01}"
 
 echo "Autonomous mapping with guarded global localization"
 echo "Map output: $OUTPUT"

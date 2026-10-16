@@ -14,7 +14,7 @@ except ImportError:
 EVENT_LOG = EventLogger("pi_web", "web_app.jsonl")
 
 NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
-BLE_ADDR = "64:B7:08:69:9A:E6"
+BLE_ADDR = "AA:BB:CC:DD:EE:01"
 _ble_q = queue.Queue()
 _ble_ok = False
 _ARM_STATE_TRACKER = None
@@ -384,7 +384,7 @@ cv.onmousedown=function(e){if(!S)return;var r=cv.getBoundingClientRect(),p={x:e.
 </script></body></html>"""
 
 def create_app(qwen_url="", lc=0, rc=2, w=640, h=480,
-               grasp_http_url="http://192.168.55.33:8020"):
+               grasp_http_url="http://192.0.2.20:8020"):
     app = Flask(__name__)
     cam = Cam(l=lc, r=rc, w=w, h=h)
     try:
@@ -919,7 +919,7 @@ setInterval(async()=>{
         app,
         jpegs=_latest_jpeg,
         ble_send=_ble_send,
-        teach_url=os.environ.get("ARM_TEACH_URL", "http://192.168.55.33:8022"),
+        teach_url=os.environ.get("ARM_TEACH_URL", "http://192.0.2.20:8022"),
     )
 
     return app
@@ -928,7 +928,7 @@ def main():
     import argparse
     p = argparse.ArgumentParser()
     p.add_argument("--qwen-url", default="")
-    p.add_argument("--grasp-http-url", default="http://192.168.55.33:8020")
+    p.add_argument("--grasp-http-url", default="http://192.0.2.20:8020")
     p.add_argument("--left-camera", type=int, default=0,
                    help="left camera when viewed from vehicle rear toward front")
     p.add_argument("--right-camera", type=int, default=2,

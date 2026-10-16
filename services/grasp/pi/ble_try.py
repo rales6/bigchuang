@@ -1,6 +1,6 @@
 import asyncio
 from bleak import BleakScanner, BleakClient
-ADDR = '64:B7:08:69:9A:E6'
+ADDR = 'AA:BB:CC:DD:EE:01'
 NUS_RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 
 async def test():

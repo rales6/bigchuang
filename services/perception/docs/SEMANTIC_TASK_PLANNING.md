@@ -263,7 +263,7 @@ python -m car_sim.natural_language_task_stress `
 
 2026-08-11 现场联通进展：
 
-- 树莓派 SSH 已在线；3090 可以 ping 通 `172.18.14.74` 并连接 22 端口。
+- 树莓派 SSH 已在线；3090 可以 ping 通 `192.0.2.11` 并连接 22 端口。
 - 建图服务保持仅监听 `127.0.0.1:8766`，通过树莓派现有的只读代理
   `0.0.0.0:8767` 向 3090 提供 `/api/status`、`/api/semantic` 和 `/api/map.png`，无需暴露控制接口。
 - 新的导航、机械臂和语义地图入口已部署到树莓派 `~/dachuang/car1.0/raspberry_pi/`；模块入口

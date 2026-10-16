@@ -134,7 +134,7 @@ def run_placement(arm, ble_send, target, status, generation, capture=None, persi
 def register_placement(bp, arm, ble_send, jpegs=None):
     from flask import request, jsonify
     jobs, lock = {}, threading.RLock()
-    evidence_root = Path("/home/dachuang/dachuang/track/final_work/data/placement_evidence")
+    evidence_root = Path("/home/robot/dachuang/track/final_work/data/placement_evidence")
 
     def persist(status):
         directory = evidence_root / status["job_id"]
@@ -162,7 +162,7 @@ def register_placement(bp, arm, ble_send, jpegs=None):
         # restores command history, not a hardware read-back claim.
         if request.remote_addr not in {"127.0.0.1", "::1"}:
             return jsonify(ok=False, error="携带交接仅允许本机桥服务"), 403
-        path = Path("/home/dachuang/dachuang/track/final_work/data/robot_skills_state.json")
+        path = Path("/home/robot/dachuang/track/final_work/data/robot_skills_state.json")
         try:
             proof = json.loads(path.read_text(encoding="utf-8"))
             if proof.get("status") != "carrying":

@@ -11,7 +11,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Submit natural-language object search to guarded 3090 planner")
     parser.add_argument("instruction")
     parser.add_argument("--instruction-file", default="", help="UTF-8 text file")
-    parser.add_argument("--3090-url", dest="gpu_url", default="http://192.168.55.33:8011")
+    parser.add_argument("--3090-url", dest="gpu_url", default="http://192.0.2.20:8011")
     parser.add_argument("--output", default="search_runs/latest_decision.json")
     parser.add_argument("--timeout", type=float, default=120.0)
     args = parser.parse_args()

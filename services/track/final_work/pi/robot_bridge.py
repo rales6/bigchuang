@@ -29,10 +29,10 @@ from urllib.parse import parse_qs, urlparse
 from .map_navigation_adapter import MapNavigationAdapter
 
 
-TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/dachuang/dachuang/track"))
-PYTHON = Path(os.environ.get("FINAL_WORK_PI_PYTHON", "/home/dachuang/dachuang/.venv/bin/python"))
-GRAB_ROOT = Path(os.environ.get("FINAL_WORK_GRAB_ROOT", "/home/dachuang/grab_visual"))
-LEGACY_MAP_ROOT = Path(os.environ.get("FINAL_WORK_LEGACY_MAP_ROOT", "/home/dachuang/dachuang/car1.0"))
+TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/robot/dachuang/track"))
+PYTHON = Path(os.environ.get("FINAL_WORK_PI_PYTHON", "/home/robot/dachuang/.venv/bin/python"))
+GRAB_ROOT = Path(os.environ.get("FINAL_WORK_GRAB_ROOT", "/home/robot/grab_visual"))
+LEGACY_MAP_ROOT = Path(os.environ.get("FINAL_WORK_LEGACY_MAP_ROOT", "/home/robot/dachuang/car1.0"))
 STATIC_MAP_PATH = Path(os.environ.get(
     "FINAL_WORK_STATIC_MAP_PATH",
     str(LEGACY_MAP_ROOT / "maps" / "ble_scene_17.pgm"),
@@ -45,8 +45,8 @@ LOG_ROOT = Path(os.environ.get("FINAL_WORK_PI_LOG_DIR", str(TRACK_ROOT / "final_
 COMPANION_URL = os.environ.get("FINAL_WORK_COMPANION_URL", "http://127.0.0.1:8770").rstrip("/")
 MAP_URL = os.environ.get("FINAL_WORK_MAP_URL", "http://127.0.0.1:8766").rstrip("/")
 GRAB_WEB_URL = os.environ.get("FINAL_WORK_GRAB_WEB_URL", "http://127.0.0.1:8080").rstrip("/")
-PURSUIT_HTTP = os.environ.get("FINAL_WORK_PURSUIT_HTTP", "http://192.168.55.33:8021").rstrip("/")
-PURSUIT_WS = os.environ.get("FINAL_WORK_PURSUIT_WS", "ws://192.168.55.33:8021/pursuit_ws")
+PURSUIT_HTTP = os.environ.get("FINAL_WORK_PURSUIT_HTTP", "http://192.0.2.20:8021").rstrip("/")
+PURSUIT_WS = os.environ.get("FINAL_WORK_PURSUIT_WS", "ws://192.0.2.20:8021/pursuit_ws")
 HARDWARE_ENABLED = os.environ.get("FINAL_WORK_ENABLE_HARDWARE", "0") == "1"
 HARDWARE_TOKEN = os.environ.get("FINAL_WORK_HARDWARE_TOKEN", "")
 

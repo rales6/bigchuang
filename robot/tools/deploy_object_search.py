@@ -46,21 +46,21 @@ def main() -> None:
     if not pi_password or not rtx_password:
         raise RuntimeError("PI_SSH_PASSWORD and RTX_SSH_PASSWORD are required")
 
-    pi = connect("dachuang.local", "dachuang", pi_password)
+    pi = connect("pi.example.invalid", "dachuang", pi_password)
     upload(
         pi,
         [
-            ("raspberry_pi/known_map_navigation.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/known_map_navigation.py"),
-            ("raspberry_pi/search_route_planner.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/search_route_planner.py"),
-            ("raspberry_pi/object_search_mission.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/object_search_mission.py"),
-            ("raspberry_pi/object_search_simulation.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/object_search_simulation.py"),
-            ("raspberry_pi/search_dashboard.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/search_dashboard.py"),
-            ("raspberry_pi/realtime_map.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/realtime_map.py"),
-            ("raspberry_pi/submit_search_command.py", "/home/dachuang/dachuang/car1.0/raspberry_pi/submit_search_command.py"),
-            ("search_object.sh", "/home/dachuang/dachuang/car1.0/search_object.sh"),
-            ("natural_search.sh", "/home/dachuang/dachuang/car1.0/natural_search.sh"),
-            ("search_dashboard.sh", "/home/dachuang/dachuang/car1.0/search_dashboard.sh"),
-            ("maps/search_decision_cabinet_red_bottle.json", "/home/dachuang/dachuang/car1.0/maps/search_decision_cabinet_red_bottle.json"),
+            ("raspberry_pi/known_map_navigation.py", "/home/robot/dachuang/car1.0/raspberry_pi/known_map_navigation.py"),
+            ("raspberry_pi/search_route_planner.py", "/home/robot/dachuang/car1.0/raspberry_pi/search_route_planner.py"),
+            ("raspberry_pi/object_search_mission.py", "/home/robot/dachuang/car1.0/raspberry_pi/object_search_mission.py"),
+            ("raspberry_pi/object_search_simulation.py", "/home/robot/dachuang/car1.0/raspberry_pi/object_search_simulation.py"),
+            ("raspberry_pi/search_dashboard.py", "/home/robot/dachuang/car1.0/raspberry_pi/search_dashboard.py"),
+            ("raspberry_pi/realtime_map.py", "/home/robot/dachuang/car1.0/raspberry_pi/realtime_map.py"),
+            ("raspberry_pi/submit_search_command.py", "/home/robot/dachuang/car1.0/raspberry_pi/submit_search_command.py"),
+            ("search_object.sh", "/home/robot/dachuang/car1.0/search_object.sh"),
+            ("natural_search.sh", "/home/robot/dachuang/car1.0/natural_search.sh"),
+            ("search_dashboard.sh", "/home/robot/dachuang/car1.0/search_dashboard.sh"),
+            ("maps/search_decision_cabinet_red_bottle.json", "/home/robot/dachuang/car1.0/maps/search_decision_cabinet_red_bottle.json"),
         ],
     )
     pi_output = run_checked(
@@ -73,19 +73,19 @@ def main() -> None:
     )
     pi.close()
 
-    rtx = connect("202.121.181.124", "sjtu", rtx_password, port=2020)
-    run_checked(rtx, "mkdir -p /home/sjtu/3090/src/qwen_grounded_tracker /home/sjtu/3090/remote_stage1_snapshot")
+    rtx = connect("198.51.100.20", "sjtu", rtx_password, port=2020)
+    run_checked(rtx, "mkdir -p /home/gpu/3090/src/qwen_grounded_tracker /home/gpu/3090/remote_stage1_snapshot")
     upload(
         rtx,
         [
-            ("3090/src/qwen_grounded_tracker/mission_supervisor.py", "/home/sjtu/3090/src/qwen_grounded_tracker/mission_supervisor.py"),
-            ("3090/src/qwen_grounded_tracker/search_task_planner.py", "/home/sjtu/3090/src/qwen_grounded_tracker/search_task_planner.py"),
-            ("3090/remote_stage1_snapshot/run_stage1_perception_server.py", "/home/sjtu/3090/remote_stage1_snapshot/run_stage1_perception_server.py"),
+            ("3090/src/qwen_grounded_tracker/mission_supervisor.py", "/home/gpu/3090/src/qwen_grounded_tracker/mission_supervisor.py"),
+            ("3090/src/qwen_grounded_tracker/search_task_planner.py", "/home/gpu/3090/src/qwen_grounded_tracker/search_task_planner.py"),
+            ("3090/remote_stage1_snapshot/run_stage1_perception_server.py", "/home/gpu/3090/remote_stage1_snapshot/run_stage1_perception_server.py"),
         ],
     )
     rtx_output = run_checked(
         rtx,
-        "cd /home/sjtu/3090 && PYTHONPATH=src /usr/bin/python3 -m py_compile "
+        "cd /home/gpu/3090 && PYTHONPATH=src /usr/bin/python3 -m py_compile "
         "src/qwen_grounded_tracker/mission_supervisor.py "
         "src/qwen_grounded_tracker/search_task_planner.py "
         "remote_stage1_snapshot/run_stage1_perception_server.py && "

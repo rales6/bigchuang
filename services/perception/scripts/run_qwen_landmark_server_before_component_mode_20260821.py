@@ -778,7 +778,7 @@ def main() -> None:
         "--pi-map-url",
         dest="pi_url",
         default="",
-        help="optional Raspberry Pi live map URL, e.g. http://192.168.55.44:8766; enables the 3090 web hub",
+        help="optional Raspberry Pi live map URL, e.g. http://192.0.2.44:8766; enables the 3090 web hub",
     )
     parser.add_argument("--allow-download", action="store_true")
     parser.add_argument("--mock", action="store_true")

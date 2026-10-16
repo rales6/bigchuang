@@ -29,6 +29,7 @@ class NavigationAvoidanceTests(unittest.TestCase):
                                          allow_short_forward=True), [])
             np.testing.assert_array_equal(before, known.traversable)
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_real_desk_scan_blocks_advance_and_preserves_obstacle(self):
         data = json.loads((Path(__file__).parent/'fixtures/rotation_desk_20260926_180247.json').read_text(encoding='utf-8'))
         frame = data['frame']

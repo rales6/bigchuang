@@ -128,7 +128,7 @@ def main():
         stationary_preflight(lambda: next(stream), lambda frame: probe_clearance(frame, True),
             lambda frame: data["frames"].append(dict(stage="before", **describe(frame))))
         client = Esp32Client(SerialConfig(link_mode="ble", ble_device_name="ESP32-Robot-Car",
-                                        ble_address="64:B7:08:69:9A:E6",
+                                        ble_address="AA:BB:CC:DD:EE:01",
                                         wheel_output_gains=(1.15, 1., .90, 1.)))
         client.heartbeat(); client.stop(); client.start()
         emit("robot_status", status=str(client.query_status()))

@@ -13,10 +13,10 @@ OUTPUT = ROOT / "search_runs" / "visual_reference_metadata"
 
 
 def main() -> None:
-    client = connect("172.18.14.74", "dachuang", os.environ["PI_SSH_PASSWORD"])
+    client = connect("192.0.2.11", "dachuang", os.environ["PI_SSH_PASSWORD"])
     try:
         OUTPUT.mkdir(parents=True, exist_ok=True)
-        remote_root = "/home/dachuang/dachuang/car1.0"
+        remote_root = "/home/robot/dachuang/car1.0"
         with client.open_sftp() as sftp:
             for remote, local in (
                 (f"{remote_root}/maps/ble_scene_17_semantics.json", OUTPUT / "semantics.json"),

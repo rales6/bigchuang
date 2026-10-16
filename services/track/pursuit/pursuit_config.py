@@ -53,8 +53,8 @@ class StereoConfig:
 class PursuitConfig:
     # ---- 3090 服务 ----
     # 8021：8020 已被 arm_grasp_server 占用
-    server_ws: str = "ws://192.168.55.33:8021/pursuit_ws"
-    server_http: str = "http://192.168.55.33:8021"
+    server_ws: str = "ws://192.0.2.20:8021/pursuit_ws"
+    server_http: str = "http://192.0.2.20:8021"
     instruction: str = ""
     # 上传帧率上限：0 = 每帧上传（相机帧率，网页显示帧率 = 相机帧率）；
     # 非 0 为可选上限（网络带宽不足时降档，无需改代码）。
@@ -393,7 +393,7 @@ class PursuitConfig:
     link_mode: str = "ble"
     ble_device_name: str = "ESP32-Robot-Car"
     # 固定地址避免名称发现受附近同名设备或 BlueZ 名称缓存影响。
-    ble_address: str = "64:B7:08:69:9A:E6"
+    ble_address: str = "AA:BB:CC:DD:EE:01"
     # ESP32 从旧连接断开后重新开始广播偶尔需要超过默认 6 秒。
     ble_connect_timeout_s: float = 10.0
     # ESP32 已支持 balanced_twist 的逐轮输出倍率（允许 0.5~1.5）。

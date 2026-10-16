@@ -18,7 +18,7 @@ from grasp_range_integration.adapters.arm_teach_model import (  # noqa: E402
 def main() -> int:
     parser = argparse.ArgumentParser(description="只检测已保存双摄拼接图的目标中心。")
     parser.add_argument("image", type=Path)
-    parser.add_argument("--model-url", default="http://192.168.55.33:8022")
+    parser.add_argument("--model-url", default="http://192.0.2.20:8022")
     parser.add_argument("--target", default="红色小物块")
     args = parser.parse_args()
     try:

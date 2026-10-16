@@ -34,10 +34,10 @@ exec python3 -u -m raspberry_pi.object_search_mission \
   --map maps/ble_scene_17.pgm \
   --map-yaml maps/ble_scene_17.yaml \
   --output search_runs/ble_scene_17 \
-  --3090-url "${SEARCH_3090_URL:-http://192.168.55.33:8011}" \
+  --3090-url "${SEARCH_3090_URL:-http://192.0.2.20:8011}" \
   --link ble \
   --ble-name ESP32-Robot-Car \
-  --ble-address 64:B7:08:69:9A:E6 \
+  --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 \
   --speed 240 \
   --slow-speed 230 \

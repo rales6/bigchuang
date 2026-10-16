@@ -9,7 +9,7 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE = "/home/sjtu/3090_stage1"
+REMOTE = "/home/gpu/3090_stage1"
 
 
 def main() -> None:
@@ -17,7 +17,7 @@ def main() -> None:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
-        "202.121.181.124", port=2020, username="sjtu", password=password,
+        "198.51.100.20", port=2020, username="sjtu", password=password,
         timeout=45, auth_timeout=45, banner_timeout=45,
     )
     command = (
@@ -68,7 +68,7 @@ def main() -> None:
                 f"{REMOTE}/src/qwen_grounded_tracker/{name}",
             )
 
-    python_path = "/home/sjtu/3090/.venv/bin/python"
+    python_path = "/home/gpu/3090/.venv/bin/python"
     compile_command = (
         f"cd {REMOTE} && PYTHONPATH=src {python_path} -m py_compile "
         "scripts/run_stage1_perception_server.py "

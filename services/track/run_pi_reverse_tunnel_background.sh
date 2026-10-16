@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="${FINAL_WORK_TRACK_ROOT:-/home/dachuang/dachuang/track}"
+ROOT="${FINAL_WORK_TRACK_ROOT:-/home/robot/dachuang/track}"
 PID_FILE="$ROOT/final_work/pi_reverse_tunnel.pid"
 LOG_FILE="$ROOT/final_work/logs/pi_reverse_tunnel.log"
-KEY="${FINAL_WORK_TUNNEL_KEY:-/home/dachuang/.ssh/final_work_3090_ed25519}"
+KEY="${FINAL_WORK_TUNNEL_KEY:-/home/robot/.ssh/final_work_3090_ed25519}"
 mkdir -p "$ROOT/final_work/logs"
 
 if [[ ! -r "$KEY" ]]; then

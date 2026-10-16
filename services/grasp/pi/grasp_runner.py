@@ -289,7 +289,7 @@ class Runner:
                 )
 
 _runner = None
-def start(target, server="ws://192.168.55.33:8020/ws/grasp",
+def start(target, server="ws://192.0.2.20:8020/ws/grasp",
           ble_send=None, capture=None, captures=None,
           initial_camera="left"):
     global _runner

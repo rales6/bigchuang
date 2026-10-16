@@ -12,7 +12,7 @@ class MicroDriveProfileTests(unittest.TestCase):
     def setUpClass(cls):
         source = Path(__file__).resolve().parents[1] / 'integrations/grab_visual/arm_teach.py'
         if not source.exists():
-            source = Path('/home/dachuang/grab_visual/arm_teach.py')
+            source = Path('/home/robot/grab_visual/arm_teach.py')
         tree = ast.parse(source.read_text(encoding='utf-8'))
         nodes = [node for node in tree.body if (
             isinstance(node, ast.FunctionDef) and node.name in {'_micro_command', '_run_chassis_pulse'}

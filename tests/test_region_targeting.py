@@ -15,19 +15,29 @@ from grasp_range_integration.phase1.startup_route_recovery import wrap_startup_r
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def public_sample_semantic():
+    # Invented geometry and IDs: exercise filtering without a real room map.
+    return {'objects': [
+        {'id': 'sample_indoor_cabinet', 'name': '沿墙柜子', 'category': 'cabinet',
+         'map_xy': [2., 1.], 'search_region_allowed': True},
+        {'id': 'sample_blue_cabinet', 'name': '蓝色柜子', 'category': 'cabinet',
+         'map_xy': [4., 3.], 'behind_glass': True, 'search_region_allowed': False},
+        {'id': 'sample_sign', 'name': '柜子标牌', 'category': 'sign', 'map_xy': [2., 1.]}]}
+
+
 class RegionTargetTests(unittest.TestCase):
     def test_actual_release_yellow_query_never_selects_blue_or_cabinet_marker(self):
-        semantic = json.loads((ROOT / 'maps/current/semantic_runtime.json').read_text(encoding='utf-8'))
+        semantic = public_sample_semantic()
         rows = entities_for(semantic, {'query': '移动黄色柜子附近'})
-        self.assertEqual([row['id'] for row in rows], ['layout_466a3c114803'])
+        self.assertEqual([row['id'] for row in rows], ['sample_indoor_cabinet'])
         self.assertEqual(rows[0]['requested_color'], 'yellow')
         self.assertTrue(rows[0]['requires_color_recheck'])  # map itself has no yellow annotation
         self.assertEqual(rows[0]['color_in_map'], [])
 
     def test_explicit_blue_id_cannot_override_glass_or_search_prohibition(self):
-        semantic = json.loads((ROOT / 'maps/current/semantic_runtime.json').read_text(encoding='utf-8'))
+        semantic = public_sample_semantic()
         with self.assertRaises(ValueError):
-            entities_for(semantic, {'query': '黄色柜子', 'landmark_id': 'layout_14912b297bc6'})
+            entities_for(semantic, {'query': '黄色柜子', 'landmark_id': 'sample_blue_cabinet'})
 
     def test_explicit_color_beats_an_uncolored_candidate(self):
         semantic = {'objects': [

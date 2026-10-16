@@ -21,7 +21,7 @@ def publish(report_path):
     quality = json.loads(quality_path.read_text(encoding='utf-8'))
     if quality.get('raw_input_complete') is not True:
         raise ValueError('Raw inference incomplete: not publishing as completed run')
-    pi = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    pi = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     gpu = None
     stamp = time.strftime('%Y%m%d_%H%M%S')
     try:
@@ -54,7 +54,7 @@ def publish(report_path):
         report['pi_result_load_check'] = json.loads(python(pi, interpreter, code))
         if remote_hashes(pi, PI_ROOT, protected) != current:
             raise RuntimeError('Protected Pi files changed during publication')
-        gpu = connect('202.121.181.124', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
+        gpu = connect('198.51.100.20', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
         report['final_inventory_cli'] = install(gpu, GPU_ROOT,
             [(ROOT / '3090/scripts/run_semantic_object_inventory.py', 'scripts/run_semantic_object_inventory.py')],
             GPU_ROOT + '/backups/inventory_final_' + stamp)

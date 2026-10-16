@@ -85,7 +85,7 @@ def main():
     group.add_argument('--stop', action='store_true')
     parser.add_argument('--receipt')
     args = parser.parse_args()
-    client = connect('dachuang.local', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid', 22, 'dachuang', os.environ['PI_SSH_PASSWORD'])
     try:
         if args.start:
             active = json.loads(python(client, 'python3', ACTIVE_CHECK))

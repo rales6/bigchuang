@@ -6,21 +6,21 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE = "/home/sjtu/3090_stage1"
+REMOTE = "/home/gpu/3090_stage1"
 
 
 def main():
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect("202.121.181.124", port=2020, username="sjtu", password=os.environ["RTX_SSH_PASSWORD"], timeout=45, auth_timeout=45, banner_timeout=45)
+    c.connect("198.51.100.20", port=2020, username="sjtu", password=os.environ["RTX_SSH_PASSWORD"], timeout=45, auth_timeout=45, banner_timeout=45)
     with c.open_sftp() as s:
         s.put(str(ROOT / "3090/remote_stage1_snapshot/run_stage1_perception_server.py"), f"{REMOTE}/scripts/run_stage1_perception_server.py")
     command = (
-        f"cd {REMOTE} && /home/sjtu/3090/.venv/bin/python -m py_compile scripts/run_stage1_perception_server.py && "
-        "nohup /home/sjtu/3090/.venv/bin/python -u scripts/run_stage1_perception_server.py "
-        "--model-path /home/sjtu/3090/models/qwen/Qwen3-VL-2B-Instruct --device cuda --max-new-tokens 900 "
-        "--yolo-model /home/sjtu/3090/models/yolo/yolo11n-seg.pt --yolo-device 0 --yolo-confidence 0.25 "
-        "--yolo-image-size 960 --pi-url http://172.18.14.74:8766 --host 0.0.0.0 --port 8011 "
+        f"cd {REMOTE} && /home/gpu/3090/.venv/bin/python -m py_compile scripts/run_stage1_perception_server.py && "
+        "nohup /home/gpu/3090/.venv/bin/python -u scripts/run_stage1_perception_server.py "
+        "--model-path /home/gpu/3090/models/qwen/Qwen3-VL-2B-Instruct --device cuda --max-new-tokens 900 "
+        "--yolo-model /home/gpu/3090/models/yolo/yolo11n-seg.pt --yolo-device 0 --yolo-confidence 0.25 "
+        "--yolo-image-size 960 --pi-url http://192.0.2.11:8766 --host 0.0.0.0 --port 8011 "
         f">{REMOTE}/stage1_8011.log 2>&1 </dev/null &"
     )
     _, out, err = c.exec_command(command, timeout=30)

@@ -62,7 +62,7 @@ SWEPT_RETREAT_MAX_PULSES = 2
 SWEPT_RETREAT_MAX_ON_TIME_S = 1.28
 TOKEN_PATH = Path(os.environ.get(
     "FINAL_WORK_HARDWARE_TOKEN_FILE",
-    "/home/dachuang/dachuang/track/final_work/data/hardware_token"))
+    "/home/robot/dachuang/track/final_work/data/hardware_token"))
 
 
 def visual_adjustment_phase(observation: dict, previous: str | None = None) -> str:

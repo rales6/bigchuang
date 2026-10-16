@@ -30,6 +30,7 @@ class RotationGuardTests(unittest.TestCase):
         turn_policy.LAST_REQUEST = (0, 0)
         turn_policy.TELEMETRY_CALLBACK = None
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def installation_scan(self):
         current = scan()
         # Existing actual rear returns, plus all five rejected edge points
@@ -99,6 +100,7 @@ class RotationGuardTests(unittest.TestCase):
         self.assertEqual(len(report['installation_patch_indices']),5)
         self.assertFalse(report['rotation_without_map']['safe'])
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_real_30_frame_opposite_edge_audit_is_filtered_but_requires_map(self):
         import json
         from pathlib import Path
@@ -136,6 +138,7 @@ class RotationGuardTests(unittest.TestCase):
         _,patch=body_mask_components(current.angles_rad,current.distances_m)
         self.assertTrue(patch[-2:].all())
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def test_20261001_opposite_edge_has_no_cartesian_gap(self):
         import json
         from pathlib import Path

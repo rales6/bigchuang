@@ -51,7 +51,7 @@ val SupportedDialects = listOf(
 )
 
 data class AppSettings(
-    val baseUrl: String = "http://172.18.14.74:8770",
+    val baseUrl: String = "http://192.0.2.11:8770",
     val videoUrl: String = "",
     val mode: UserMode = UserMode.ADULT,
     val autoSpeak: Boolean = false,
@@ -102,7 +102,7 @@ data class AnnotationConfiguration(
 
 data class BluetoothConfiguration(
     val deviceName: String = "ESP32-Robot-Car",
-    val deviceAddress: String = "64:B7:08:69:9A:E6",
+    val deviceAddress: String = "AA:BB:CC:DD:EE:01",
     val autoRecover: Boolean = true,
     val failureThreshold: Int = 3,
     val maxRecoveryAttempts: Int = 2,

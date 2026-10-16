@@ -26,4 +26,4 @@
 
 最终相关回归 338 项通过。完整扰动三次仅一次覆盖完成，另外两次因真实注入的机械卡滞触发独立无响应／位置进展保护，均无仿真碰撞，未宣称全程验收通过。
 
-已于 19:50 更新到树莓派，未启动车辆。部署前确认没有运行中的巡检任务，原地图、入口、启动脚本、定位模块和扫描匹配器哈希不变。备份：`/home/dachuang/dachuang/car1.0/backups/panorama_escape_limit_removal_20260918_195008`；回执：`simulation_runs/panorama_escape_limit_removal_deployment_20260918_195008.json`。安装后哈希和无底盘指令的限时／选向检查通过。
+已于 19:50 更新到树莓派，未启动车辆。部署前确认没有运行中的巡检任务，原地图、入口、启动脚本、定位模块和扫描匹配器哈希不变。备份：`/home/robot/dachuang/car1.0/backups/panorama_escape_limit_removal_20260918_195008`；回执：`simulation_runs/panorama_escape_limit_removal_deployment_20260918_195008.json`。安装后哈希和无底盘指令的限时／选向检查通过。

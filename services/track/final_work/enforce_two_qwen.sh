@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="${FINAL_WORK_TRACK_ROOT:-/home/sjtu/track}"
-PYTHON="${FINAL_WORK_GPU_PYTHON:-/home/sjtu/3090/.venv/bin/python}"
+ROOT="${FINAL_WORK_TRACK_ROOT:-/home/gpu/track}"
+PYTHON="${FINAL_WORK_GPU_PYTHON:-/home/gpu/3090/.venv/bin/python}"
 LOG_DIR="$ROOT/final_work/logs"
 mkdir -p "$LOG_DIR"
 
@@ -15,7 +15,7 @@ done
 
 # Restart 8021 so its old in-process Qwen allocation is released. The new
 # server keeps YOLO/CSRT locally but sends grounding requests to 8010.
-PURSUIT_PIDS="$(pgrep -f '/home/sjtu/track/pursuit_server.py.*--port 8021' || true)"
+PURSUIT_PIDS="$(pgrep -f '/home/gpu/track/pursuit_server.py.*--port 8021' || true)"
 for PID in $PURSUIT_PIDS; do kill -TERM "$PID"; done
 for _ in $(seq 1 40); do
   ALIVE=""

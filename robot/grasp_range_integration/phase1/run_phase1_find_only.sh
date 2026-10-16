@@ -66,7 +66,7 @@ if [[ "$(readlink -f "$PHASE1_LEFT_CAMERA")" == "$(readlink -f "$PHASE1_RIGHT_CA
   exit 2
 fi
 
-track_root="${FINAL_WORK_TRACK_ROOT:-/home/dachuang/dachuang/track}"
+track_root="${FINAL_WORK_TRACK_ROOT:-/home/robot/dachuang/track}"
 if [[ -f "$track_root/final_work/data/camera_broker.json" ]]; then
   export FINAL_WORK_CAMERA_BROKER_URL=http://127.0.0.1:18881
   # Share cameras without replacing car1.0 navigation with track/raspberry_pi.
@@ -112,10 +112,10 @@ exec python3 -u "$release_dir/grasp_range_integration/phase1/relationship_find_o
   --map "$release_dir/ble_scene_17.pgm" \
   --map-yaml "$release_dir/ble_scene_17.yaml" \
   --output "$car_root/search_runs/ble_scene_17" \
-  --3090-url "${SEARCH_3090_URL:-http://192.168.55.33:8011}" \
+  --3090-url "${SEARCH_3090_URL:-http://192.0.2.20:8011}" \
   --link ble \
   --ble-name ESP32-Robot-Car \
-  --ble-address 64:B7:08:69:9A:E6 \
+  --ble-address AA:BB:CC:DD:EE:01 \
   --lidar-port /dev/ttyACM0 \
   --speed 240 \
   --slow-speed 230 \

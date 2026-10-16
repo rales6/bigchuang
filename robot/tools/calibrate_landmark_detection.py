@@ -19,7 +19,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--reference-root", default="inspections/ble_scene_17")
     parser.add_argument("--semantic-map", default="maps/ble_scene_17_semantics_qwen.json")
-    parser.add_argument("--endpoint", default="http://192.168.55.33:8011")
+    parser.add_argument("--endpoint", default="http://192.0.2.20:8011")
     parser.add_argument("--targets", default="object_2_1,wall_6_3,wall_6_4,wall_1_3")
     args = parser.parse_args()
     manifests = sorted(Path(args.reference_root).rglob("inspection_manifest.json"), key=lambda path: path.stat().st_mtime_ns)

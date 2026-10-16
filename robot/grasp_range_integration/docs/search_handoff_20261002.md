@@ -1,7 +1,7 @@
 # 20261002 寻物衔接修复
 
 证据：实车任务 a6aa47faa96c4d7484059c3ef387f830，结果目录
-`/home/dachuang/dachuang/car1.0/search_runs/ble_scene_17/20261002_165830`。
+`/home/robot/dachuang/car1.0/search_runs/ble_scene_17/20261002_165830`。
 
 17:00:28 的 obs_0003 双摄原图确实包含绿色小物块；Qwen 双摄置信度均 0.85。
 估计小车到柜子区域中心 2.441m，比 approach 门槛 2.40m 仅远约 4cm，
@@ -34,7 +34,7 @@
 ## 17:31 实车验证与补修
 
 新任务 `5ec8d1121de841fbbdfa1b5b7b5b9857` 的目录为
-`/home/dachuang/dachuang/car1.0/search_runs/ble_scene_17/20261002_173117`。
+`/home/robot/dachuang/car1.0/search_runs/ble_scene_17/20261002_173117`。
 回波字段修复已生效（17:33:17 agreement=0.9583，coverage=0.8611），
 但在起点路线出口恢复阶段仍失败，未到柜子、未夹取。
 新发现：已验证绝对地图锚点被“路线不可达”的回调否决后，恢复器也丢弃了

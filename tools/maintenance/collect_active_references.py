@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--reference", required=True, help="Verified active inspection directory on Pi")
     args = parser.parse_args()
     base = args.reference.rstrip("/")
-    allowed_root = "/home/dachuang/dachuang/car1.0/inspections/ble_scene_17/"
+    allowed_root = "/home/robot/dachuang/car1.0/inspections/ble_scene_17/"
     if not base.startswith(allowed_root) or ".." in PurePosixPath(base).parts:
         raise ValueError("Reference is outside the verified scene")
     manifest_path = ROOT/"docs/maintenance/source_manifest.json"
@@ -51,7 +51,7 @@ def main():
             assembly.put(source,"maps/current/references/inspection_manifest.json",local,"pi")
             assembly.files["maps/current/references/inspection_manifest.json"]["transform"]="relative_image_paths"
             # Python helpers used by the active scene are code, not map data.
-            scene="/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919"
+            scene="/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919"
             for entry in s.listdir_attr(scene):
                 if Path(entry.filename).suffix not in {".py",".sh",".conf"}:continue
                 with s.open(scene+"/"+entry.filename,"rb") as f:

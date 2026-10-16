@@ -12,7 +12,7 @@
 
 `robot/grasp_range_integration/phase1/deepseek_planner.py` 解析物品与地点；`visibility_route_planner.py` 规划有效观察范围；`relationship_find_only_entry.py` 接入地图/雷达导航。恢复、车身回波、玻璃边界分别在同目录模块，不因本次整理改变门限。
 
-普通“前往黄色柜子附近”等区域导航，由 `services/track/final_work/pi/region_navigation.py` 接入 `region_localization.py`，不再回到旧的强制跨位置验收初始化。先从停车后的新扫描做一次全局匹配（只提供搜索范围），再用现有自适应恢复模块核验四帧一致性及独立新帧；稳定时不发出多余换位动作，证据不足时才由原恢复控制器处理视觉复核/安全换视角。未知起点不使用目标柜子坐标或历史位姿冒充小车位置。携带物品时仍使用 `carry_localization.py`，两种入口都保留路线预检和途中定位接管。详见 [问题分析与修复记录](maintenance/20261015_region_localization_and_release.md)。
+普通区域导航由 `services/track/final_work/pi/region_navigation.py` 接入 `region_localization.py`；携带物品时使用 `carry_localization.py`。先核验新鲜雷达与视觉证据，稳定时衔接导航，证据不足时进入恢复，不用目标坐标冒充小车位置。具体场景地图、标定和部署审计属于内部资料，公开版仅保留算法与入口。
 
 2026-10-15 第二轮部署补齐目标与转向衔接：区域筛选过滤 `behind_glass=true`、`search_region_allowed=false` 及家具上的标记，保留颜色条件，不能用蓝柜替换黄柜。未标颜色的唯一室内候选只作为待视觉复核区域，不修改稳定地图的标注事实。区域站位失败改抛现有恢复器可识别的 `NoReachableVisibilityError`，优先使用原退距，必要时扩大到 1.50/1.70m。`phase1/adaptive_turn.py` 按左右方向保留最近实测有效的起转速度、时长及轮输出档位；仍按剩余角度减小脉冲，保留实时净空/玻璃边界、反向纠偏和反馈复核。
 

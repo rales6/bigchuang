@@ -1,7 +1,7 @@
 {
   "schema": "grasp_model_dry_run.v1",
-  "model_url_on_pi": "http://192.168.55.33:8022",
-  "model_url_from_lan": "http://202.121.181.124:8022",
+  "model_url_on_pi": "http://192.0.2.20:8022",
+  "model_url_from_lan": "http://198.51.100.20:8022",
   "camera_stream_base_url_on_pi": "http://127.0.0.1:8080",
   "trained_target": "红色小物块",
   "prediction_timeout_s": 120.0,

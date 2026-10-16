@@ -73,7 +73,7 @@ cd ~/bigchuang
 source .venv/bin/activate
 
 python semantic_mapping/raspberry_pi/run_semantic_mapping.py \
-  --qwen-url http://192.168.55.33:8010/landmarks \
+  --qwen-url http://192.0.2.20:8010/landmarks \
   --camera 0 \
   --lidar-port /dev/ttyUSB0 \
   --esp-port /dev/serial0 \
@@ -84,7 +84,7 @@ python semantic_mapping/raspberry_pi/run_semantic_mapping.py \
 
 ```bash
 python semantic_mapping/raspberry_pi/run_semantic_mapping.py \
-  --qwen-url http://192.168.55.33:8010/landmarks \
+  --qwen-url http://192.0.2.20:8010/landmarks \
   --camera 0 \
   --lidar-port /dev/ttyUSB0 \
   --no-esp32 \

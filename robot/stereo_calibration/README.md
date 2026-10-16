@@ -76,10 +76,10 @@ outputs/stereo_calibration_samples/
 在树莓派上执行：
 
 ```bash
-scp -r outputs/stereo_calibration_samples sjtu@192.168.55.33:~/stereo_calibration/outputs/
+scp -r outputs/stereo_calibration_samples sjtu@192.0.2.20:~/stereo_calibration/outputs/
 ```
 
-如果 3090 的 IP 不是 `192.168.55.33`，先在 3090 上运行：
+如果 3090 的 IP 不是 `192.0.2.20`，先在 3090 上运行：
 
 ```bash
 hostname -I

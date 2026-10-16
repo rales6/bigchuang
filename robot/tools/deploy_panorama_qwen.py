@@ -13,7 +13,7 @@ from tools.deploy_object_search import connect
 from tools.deploy_inspection_route_fix import command
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = "/home/sjtu/3090/scripts/run_qwen_landmark_server.py"
+SOURCE = "/home/gpu/3090/scripts/run_qwen_landmark_server.py"
 
 
 def main():
@@ -22,8 +22,8 @@ def main():
     args = parser.parse_args()
     content = (ROOT / "3090/scripts/run_qwen_landmark_server.py").read_bytes().replace(b"\r\n", b"\n")
     expected = hashlib.sha256(content).hexdigest()
-    client = connect("202.121.181.124", "sjtu", os.environ["RTX_SSH_PASSWORD"], port=2020)
-    backup = "/home/sjtu/3090/backups/panorama_" + time.strftime("%Y%m%d_%H%M%S")
+    client = connect("198.51.100.20", "sjtu", os.environ["RTX_SSH_PASSWORD"], port=2020)
+    backup = "/home/gpu/3090/backups/panorama_" + time.strftime("%Y%m%d_%H%M%S")
     try:
         with client.open_sftp() as sftp:
             previous = sftp.open(SOURCE, "rb").read()
@@ -36,7 +36,7 @@ def main():
             if hashlib.sha256(sftp.open(staged, "rb").read()).hexdigest() != expected:
                 raise RuntimeError("staged upload hash mismatch")
             check = "import runpy; d=runpy.run_path(" + repr(staged) + "); p=d['build_prompt']({'inspection_mode':'panorama_sector'}); assert 'map_memory_allowed=false' in p; assert 'LEFT/RIGHT' in p; print('PANORAMA_PROMPT_OK')"
-            print(command(client, "/home/sjtu/3090/.venv/bin/python -c " + shlex.quote(check)).strip(), flush=True)
+            print(command(client, "/home/gpu/3090/.venv/bin/python -c " + shlex.quote(check)).strip(), flush=True)
             if sftp.open(SOURCE, "rb").read() != previous:
                 raise RuntimeError("remote source changed during staging")
             sftp.chmod(staged, sftp.stat(SOURCE).st_mode & 0o777)

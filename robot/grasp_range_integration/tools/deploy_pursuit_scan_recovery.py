@@ -9,7 +9,7 @@ from grasp_range_integration.tools.deploy_phase1_observation import protected_ha
 from grasp_range_integration.tools.deploy_preview_camera_sharing import idle
 
 ROOT = Path(__file__).resolve().parents[2]
-TRACK = '/home/dachuang/dachuang/track'
+TRACK = '/home/robot/dachuang/track'
 SOURCE = ROOT/'grasp_range_integration/track_web_integration/pi'
 FILES = {
     'pursuit_recovery.py': '8351b32fb6f8391eabe229d68b74d1d7444c0ebebce0d410a17f49e7bc95ecd8',
@@ -33,7 +33,7 @@ def main():
             protected = protected_hashes(sftp)
             # Include frozen pursuit and grab code, beyond the navigation core.
             frozen = [TRACK+'/pursuit/run_visual_pursuit.py', TRACK+'/pursuit/pursuit_controller.py',
-                      '/home/dachuang/grab_visual/web_app.py']
+                      '/home/robot/grab_visual/web_app.py']
             frozen_before = {p: sha(_read(sftp, p)) for p in frozen}
             prepared = []
             for name, expected in FILES.items():

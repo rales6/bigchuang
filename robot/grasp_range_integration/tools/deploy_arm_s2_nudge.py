@@ -17,9 +17,9 @@ import time
 import paramiko
 
 
-HOST = "172.18.5.31"
+HOST = "192.0.2.13"
 HOST_KEY = "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6"
-SOURCE = "/home/dachuang/grab_visual/arm_teach.py"
+SOURCE = "/home/robot/grab_visual/arm_teach.py"
 EXPECTED_SHA256 = "1deb955ea5af8a58c7722c130948c56872fe21f4d228aeb26c606506a02f09a4"
 MARKER = "def _s2_preclose_nudge_target(target: dict) -> dict | None:"
 
@@ -126,13 +126,13 @@ def main() -> None:
             if (execution.get("status") or {}).get("active"):
                 raise RuntimeError("机械臂正在执行动作，拒绝替换源码")
             stamp = time.strftime("%Y%m%d_%H%M%S")
-            backup_dir = "/home/dachuang/grab_visual/deployment_backups"
+            backup_dir = "/home/robot/grab_visual/deployment_backups"
             try:
                 sftp.stat(backup_dir)
             except FileNotFoundError:
                 sftp.mkdir(backup_dir)
             backup = f"{backup_dir}/arm_teach_before_s2_nudge_{stamp}.py"
-            staged = f"/home/dachuang/grab_visual/.arm_teach_s2_nudge_{stamp}.py"
+            staged = f"/home/robot/grab_visual/.arm_teach_s2_nudge_{stamp}.py"
             with sftp.open(backup, "wb") as stream:
                 stream.write(original_bytes)
             with sftp.open(staged, "wb") as stream:

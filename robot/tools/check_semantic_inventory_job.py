@@ -15,9 +15,9 @@ def check(report_path, fetch=False):
     if not report.get('job_started'):
         raise ValueError('Deployment report does not record a started job')
     job, pid = report['job'], int(report['pid'])
-    if not job.startswith('/home/sjtu/car_inspection_jobs/object_inventory_'):
+    if not job.startswith('/home/gpu/car_inspection_jobs/object_inventory_'):
         raise ValueError('Unexpected job path')
-    client = connect('202.121.181.124', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
+    client = connect('198.51.100.20', 2020, 'sjtu', os.environ['QWEN_SSH_PASSWORD'])
     try:
         code = """
 import json

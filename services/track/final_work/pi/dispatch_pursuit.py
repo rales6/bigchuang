@@ -31,7 +31,7 @@ def main() -> int:
             encoding="utf-8"
         ).strip()
     if args.camera_order is None:
-        web_url = os.environ.get('FINAL_WORK_WEB_URL','http://192.168.55.33:8030').rstrip('/')
+        web_url = os.environ.get('FINAL_WORK_WEB_URL','http://192.0.2.20:8030').rstrip('/')
         with request.urlopen(web_url+'/api/robot/camera-order',timeout=5) as response:
             order=json.load(response)['camera_order']
         if not isinstance(order.get('swapped'),bool):

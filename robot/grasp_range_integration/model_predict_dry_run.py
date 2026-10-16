@@ -25,7 +25,7 @@ def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="双摄夹取模型只预测测试：不连接 BLE，不发送任何运动指令。"
     )
-    parser.add_argument("--model-url", default="http://192.168.55.33:8022")
+    parser.add_argument("--model-url", default="http://192.0.2.20:8022")
     parser.add_argument("--target", default="红色小物块")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--camera-stream", metavar="URL")

@@ -13,10 +13,10 @@ def main():
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect("dachuang.local", username="dachuang", password=getpass.getpass("Pi password: "), timeout=20)
+    client.connect("pi.example.invalid", username="dachuang", password=getpass.getpass("Pi password: "), timeout=20)
     try:
         stdin, stdout, stderr = client.exec_command(
-            "cd /home/dachuang/dachuang/car1.0 && "
+            "cd /home/robot/dachuang/car1.0 && "
             "latest=$(find inspections/ble_scene_17 -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\\n' | sort -nr | head -1 | cut -d' ' -f2-) && "
             "printf '%s\\n' \"$latest\" && "
             "latest_log=$(ls -1t inspection_logs/inspect_map_*.log 2>/dev/null | head -1) && printf '%s\\n' \"$latest_log\"",
@@ -33,11 +33,11 @@ def main():
         with client.open_sftp() as sftp:
             for name in names:
                 try:
-                    sftp.get("/home/dachuang/dachuang/car1.0/" + remote_directory + "/" + name, str(output / name))
+                    sftp.get("/home/robot/dachuang/car1.0/" + remote_directory + "/" + name, str(output / name))
                 except FileNotFoundError:
                     pass
-            sftp.get("/home/dachuang/dachuang/car1.0/" + remote_log, str(output / Path(remote_log).name))
-            sftp.get("/home/dachuang/dachuang/car1.0/maps/ble_scene_17_semantics_qwen.json",
+            sftp.get("/home/robot/dachuang/car1.0/" + remote_log, str(output / Path(remote_log).name))
+            sftp.get("/home/robot/dachuang/car1.0/maps/ble_scene_17_semantics_qwen.json",
                      str(output / "ble_scene_17_semantics_qwen.json"))
             manifest_path = output / "inspection_manifest.json"
             if manifest_path.exists():
@@ -47,7 +47,7 @@ def main():
                          if name and Path(name).name == name}
                 for name in sorted(names):
                     try:
-                        sftp.get("/home/dachuang/dachuang/car1.0/" + remote_directory + "/" + name,
+                        sftp.get("/home/robot/dachuang/car1.0/" + remote_directory + "/" + name,
                                  str(output / name))
                     except FileNotFoundError:
                         pass

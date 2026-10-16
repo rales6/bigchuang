@@ -46,7 +46,7 @@ def main() -> None:
         if args.ble_state:
             for command in (
                 "bluetoothctl show",
-                "bluetoothctl info 64:B7:08:69:9A:E6",
+                "bluetoothctl info AA:BB:CC:DD:EE:01",
                 "rfkill list bluetooth",
                 "/usr/sbin/rfkill list bluetooth",
                 "systemctl is-active bluetooth",
@@ -80,7 +80,7 @@ def main() -> None:
                 path = str(PurePosixPath(logs) / item.filename)
                 print("\n### " + path)
                 print(_read_tail(sftp, path, 10000 if args.concise else 18000))
-            car = "/home/dachuang/dachuang/car1.0/search_runs/ble_scene_17"
+            car = "/home/robot/dachuang/car1.0/search_runs/ble_scene_17"
             runs = sorted(
                 (item for item in sftp.listdir_attr(car)
                  if item.filename[:8].isdigit()),

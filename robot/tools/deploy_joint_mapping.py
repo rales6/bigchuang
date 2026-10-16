@@ -16,7 +16,7 @@ import time
 import paramiko
 
 ROOT = Path(__file__).resolve().parents[1]
-REMOTE = "/home/dachuang/dachuang/car1.0"
+REMOTE = "/home/robot/dachuang/car1.0"
 FILES = ("raspberry_pi/autonomous_mapping.py", "raspberry_pi/joint_mapping.py",
          "raspberry_pi/mapping/explorer.py", "map_and_annotate.sh", "raspberry_pi/docs/joint_mapping.md")
 DEPENDENCIES = [p.relative_to(ROOT).as_posix() for p in (ROOT / "raspberry_pi/mapping").glob("*.py") if p.relative_to(ROOT).as_posix() not in FILES]
@@ -51,7 +51,7 @@ def mapping_config_equivalent(first, second):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="dachuang.local")
+    parser.add_argument("--host", default="pi.example.invalid")
     parser.add_argument("--deploy", action="store_true")
     parser.add_argument("--show-config-diff", action="store_true")
     parser.add_argument("--show-source-diff", action="store_true")

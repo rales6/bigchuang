@@ -35,7 +35,7 @@ import numpy as np
 from flask import Blueprint, Response, jsonify, request
 from teaching_region import region_accepts,GRASP_MARGIN_PX
 
-DEFAULT_TEACH_URL = "http://192.168.55.33:8022"
+DEFAULT_TEACH_URL = "http://192.0.2.20:8022"
 DATASET_ROOT = Path(__file__).resolve().parent / "arm_teach_dataset"
 
 
@@ -185,7 +185,7 @@ def _micro_command(action: str, speed_mm_s: float = 405,
         except ImportError:
             import sys
             from pathlib import Path
-            track_root = Path('/home/dachuang/dachuang/track')
+            track_root = Path('/home/robot/dachuang/track')
             if not (track_root/'car/protocol/frame.py').is_file():
                 raise RuntimeError('弧线微调缺少现有 V2 协议模块，禁止降级为 MOV')
             sys.path.insert(0,str(track_root))
@@ -873,7 +873,7 @@ def register(app, jpegs: dict, ble_send, teach_url: str = DEFAULT_TEACH_URL):
             return False
         token_path = Path(os.environ.get(
             "FINAL_WORK_HARDWARE_TOKEN_FILE",
-            "/home/dachuang/dachuang/track/final_work/data/hardware_token"))
+            "/home/robot/dachuang/track/final_work/data/hardware_token"))
         try:
             expected = token_path.read_text(encoding="utf-8").strip()
         except OSError:

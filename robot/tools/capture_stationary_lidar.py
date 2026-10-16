@@ -57,13 +57,13 @@ def main():
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect('dachuang.local', username='dachuang', password=getpass.getpass('Pi password: '), timeout=20)
+    client.connect('pi.example.invalid', username='dachuang', password=getpass.getpass('Pi password: '), timeout=20)
     try:
         directory.mkdir(parents=True, exist_ok=False)
         with client.open_sftp() as sftp:
             for name in ('ble_scene_17.pgm', 'ble_scene_17.yaml'):
-                sftp.get('/home/dachuang/dachuang/car1.0/maps/' + name, str(directory / name))
-        stdin, stdout, stderr = client.exec_command('cd /home/dachuang/dachuang/car1.0 && .venv-pi/bin/python -u -', timeout=55)
+                sftp.get('/home/robot/dachuang/car1.0/maps/' + name, str(directory / name))
+        stdin, stdout, stderr = client.exec_command('cd /home/robot/dachuang/car1.0 && .venv-pi/bin/python -u -', timeout=55)
         stdin.write(REMOTE_CODE)
         stdin.flush()
         stdin.channel.shutdown_write()

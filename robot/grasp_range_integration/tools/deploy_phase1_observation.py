@@ -14,7 +14,7 @@ import paramiko
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CAR = "/home/dachuang/dachuang/car1.0"
+CAR = "/home/robot/dachuang/car1.0"
 RELEASE = CAR + "/ble_scene_17_relationship_20260919"
 PYTHON = CAR + "/.venv-pi/bin/python3"
 PI_HOST_KEY_SHA256 = "1c624d9d6c33aa0482a4f043a4b17b295b9b64dd232c3e3fadce4d6436594ee6"
@@ -134,7 +134,7 @@ def main():
                         help="Deploy and verify file hashes only; do not run remote tests or compile checks")
     parser.add_argument("--test-module", action="append",
                         help="Run only these software regression modules instead of full discovery")
-    parser.add_argument("--host", default="dachuang.local",
+    parser.add_argument("--host", default="pi.example.invalid",
                         help="Explicit Pi hostname/IP when mDNS is unavailable")
     parser.add_argument("--only", action="append", choices=FILES,
                         help="Deploy only this allowlisted release file; may be repeated")

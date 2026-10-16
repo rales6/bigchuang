@@ -13,7 +13,7 @@ import subprocess
 import time
 
 
-ESP32_ADDRESS = "64:B7:08:69:9A:E6"
+ESP32_ADDRESS = "AA:BB:CC:DD:EE:01"
 DISCOVERY_ERRORS = (
     "已知地址扫描超时",
     "设备名称扫描超时",

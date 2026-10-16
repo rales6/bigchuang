@@ -19,10 +19,10 @@
 树莓派保存位置：
 
 ```text
-/home/dachuang/dachuang/track/final_work/task_videos/latest/left.avi
-/home/dachuang/dachuang/track/final_work/task_videos/latest/right.avi
-/home/dachuang/dachuang/track/final_work/task_videos/latest/timeline.jsonl
-/home/dachuang/dachuang/track/final_work/task_videos/latest/session.json
+/home/robot/dachuang/track/final_work/task_videos/latest/left.avi
+/home/robot/dachuang/track/final_work/task_videos/latest/right.avi
+/home/robot/dachuang/track/final_work/task_videos/latest/timeline.jsonl
+/home/robot/dachuang/track/final_work/task_videos/latest/session.json
 ```
 
 录像为 MJPG AVI、640×360、5fps，无音频；识别/靠近输入仍为原 LEFT=video2、RIGHT=video0、1280×720，不改变训练相机顺序或模型几何。两路录像合计软预算 512MiB，磁盘保留 256MiB：到预算只结束写录像，不结束车辆任务；原因记入 `session.json`。`timeline.jsonl` 记录真实帧序号/采集时刻及缺帧或过期标记，不能把黑帧当识别失败。状态可查看 Pi 桥 `/state` 的 `task_recording`。
@@ -42,7 +42,7 @@
 - `pi/robot_bridge.py`：网页独立模型夹取的**执行前对齐**若返回明确的“目标未同时出现在双目画面”，自动重新获取当前照片并对齐；对齐成功后仍只调用一次原机械臂预测执行接口。已经接受的机械臂任务、执行结果不明、急停或真实硬件故障不作为普通目标丢失重复夹取。
 - 每个阶段允许初次尝试后最多两次重建；追踪与其凸包交接共用重试次数，重建启动受首次丢失后的 180 秒窗口约束。该窗口不是整轮任务截止时间，也不截断正在执行的原追踪流程。重试耗尽记录 `pursuit_loss_recovery_exhausted`，保留原指令和现场日志，不伪报夹取成功。恢复间短暂停车用于释放设备与重新识别，不是要求重新执行整个任务。
 
-查看同一网页 `visual_pursuit` 日志中的 `pursuit_attempt_finished`、`pursuit_loss_recovery`、`pursuit_hull_handoff` 和 `pursuit_session_finished`，可区分一次识别失败与整个恢复结束；各次原追踪照片/遥测仍分别保存在树莓派 `/home/dachuang/dachuang/track/logs/pursuit/`。准备下一次部署时须一起上传 `pi/pursuit_recovery.py`、`pi/pursuit_session.py`、`pi/robot_bridge.py`，不能只上传桥文件。
+查看同一网页 `visual_pursuit` 日志中的 `pursuit_attempt_finished`、`pursuit_loss_recovery`、`pursuit_hull_handoff` 和 `pursuit_session_finished`，可区分一次识别失败与整个恢复结束；各次原追踪照片/遥测仍分别保存在树莓派 `/home/robot/dachuang/track/logs/pursuit/`。准备下一次部署时须一起上传 `pi/pursuit_recovery.py`、`pi/pursuit_session.py`、`pi/robot_bridge.py`，不能只上传桥文件。
 
 本次只修改适配层和软件测试，冻结追踪核心、导航核心、底盘协议、机械臂模型/权重未改。软件验证命令仍为 `python -m grasp_range_integration.tools.validate_live_observation --report diagnostics/live_observation_validation.json`；新增丢失→重建→成功、取消、旧日志拒绝、停止应答失败、机械臂不重复执行及网页对齐恢复检查。当前 **451 项软件检查通过**，其中 31 项覆盖丢失恢复；同时修正旧追踪入口测试的灰图/缺少单摄确认字段，使其提供真实颜色像素和完整检测合同，未放宽识别门检。**已随晚间补丁部署，没有重新实车验证；黄色启动定位/可通行路线问题由上一节单独处理，不能算已被目标丢失重试修复。**
 
@@ -157,7 +157,7 @@
 >
 > 本文以 `car1.0/` 为仓库根目录。原有建图、标注、自然语言解析、导航、识别、模型及底层执行代码仍是**只读依赖，禁止修改**。本次仅新增/更新 `grasp_range_integration/` 内的交接门，以及另一个项目 `track/final_work` 的网页/树莓派**编排适配层**；没有改动上述冻结算法和权重。
 
-> 例外：2026-09-29 用户单独要求修正实际夹取略偏前的问题，授权对树莓派 `/home/dachuang/grab_visual/arm_teach.py` 的模型夹取动作序列增加一次极小的闭爪前关节微调；其余冻结代码和模型权重仍不可改。原文件已备份，部署脚本见 `tools/deploy_arm_s2_nudge.py`。
+> 例外：2026-09-29 用户单独要求修正实际夹取略偏前的问题，授权对树莓派 `/home/robot/grab_visual/arm_teach.py` 的模型夹取动作序列增加一次极小的闭爪前关节微调；其余冻结代码和模型权重仍不可改。原文件已备份，部署脚本见 `tools/deploy_arm_s2_nudge.py`。
 
 ## 0. 从自然语言到夹取的一轮任务（2026-09-29 集成）
 
@@ -201,9 +201,9 @@
 
 ### 2026-09-29：`150621` 网页实车任务起步前 BLE 扫描超时
 
-本轮 DeepSeek 指令/柜子区域门检通过，但 `mission.json` 仅记录 `startup_failed`：已知地址 `64:B7:08:69:9A:E6` 扫描连续 8 次超时（每次 6 秒）。底盘未连接，因而没有定位、寻物或夹取；网页交接门正确拒绝后续阶段。事后 Pi 的 BlueZ 为 active、适配器 powered、设备显示 connected，无法据此断言当时是 ESP32 断电还是 BlueZ 状态卡住。
+本轮 DeepSeek 指令/柜子区域门检通过，但 `mission.json` 仅记录 `startup_failed`：已知地址 `AA:BB:CC:DD:EE:01` 扫描连续 8 次超时（每次 6 秒）。底盘未连接，因而没有定位、寻物或夹取；网页交接门正确拒绝后续阶段。事后 Pi 的 BlueZ 为 active、适配器 powered、设备显示 connected，无法据此断言当时是 ESP32 断电还是 BlueZ 状态卡住。
 
-新增 `phase1/ble_startup_recovery.py`，只在起步连接前两次出现“已知地址/名称扫描超时或未发现设备”时，且无其他运动/夹取进程时执行一次：`bluetoothctl disconnect 64:B7:08:69:9A:E6`（失败可忽略）→ `sudo -n systemctl restart bluetooth` → `sudo -n /usr/sbin/rfkill unblock bluetooth` → 等 3 秒 → `bluetoothctl power on`，然后用剩余 6 次机会重新建立 ESP32 心跳和 STOP。Pi 已安装 `rfkill`，但用户 PATH 不含 `/usr/sbin`；代码会查找该绝对路径。非扫描类故障不重启蓝牙；恢复命令失败则不继续底盘任务。仅新增适配层，不修改冻结的 BLE 传输或底盘控制代码。本轮只做离线测试与部署，不主动重启现场蓝牙或启动车辆。
+新增 `phase1/ble_startup_recovery.py`，只在起步连接前两次出现“已知地址/名称扫描超时或未发现设备”时，且无其他运动/夹取进程时执行一次：`bluetoothctl disconnect AA:BB:CC:DD:EE:01`（失败可忽略）→ `sudo -n systemctl restart bluetooth` → `sudo -n /usr/sbin/rfkill unblock bluetooth` → 等 3 秒 → `bluetoothctl power on`，然后用剩余 6 次机会重新建立 ESP32 心跳和 STOP。Pi 已安装 `rfkill`，但用户 PATH 不含 `/usr/sbin`；代码会查找该绝对路径。非扫描类故障不重启蓝牙；恢复命令失败则不继续底盘任务。仅新增适配层，不修改冻结的 BLE 传输或底盘控制代码。本轮只做离线测试与部署，不主动重启现场蓝牙或启动车辆。
 
 ### 2026-09-29：`225143` 到柜子视野后漏掉红块
 
@@ -401,7 +401,7 @@
 
 起转经验左右独立：实际已发送的3500mrad/s、180ms、与人工标定一致的轮输出，转后新扫描验证可靠、方向正确、平移≤3cm、转角0.25–24°，才计入成功。两次成功后可在同轮后续转向及下次任务直接使用有效起转档，不必再重复六次短脉冲。只适用于剩余右转≥12°/左转≥14°且原脉冲预算允许的起转；不是直行巡航提速，也不放大精细对齐。保留最快响应并按1.5倍速率余量缩短后续脉冲；三次实际不起转撤销本轮该方向的继承，继续原有动态恢复，不伪造失败次数或无限重试。
 
-经验文件在树莓派：`/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/runtime/motion_experience.json`。首次没有文件且BLE身份及轮平衡符合原标定时，可从已核对的 `search_runs/ble_scene_17/20260927_162135/phase1_motion.jsonl` 导入真实发送脉冲→有效停车后扫描窗口→可靠实测运动的证据，不能继承仅请求的速度。历史任务整体失败不等于其中起转没有成功，也不据此宣告任务已完成。历史证据保留原时间，超过七天不继承；其他情况从本轮反馈学习。文件原子保存，绑定适配器/标定/车体掩膜版本、底盘连接身份及轮平衡；过期、损坏或绑定变化时不复用。部署不会覆盖此运行文件。
+经验文件在树莓派：`/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/runtime/motion_experience.json`。首次没有文件且BLE身份及轮平衡符合原标定时，可从已核对的 `search_runs/ble_scene_17/20260927_162135/phase1_motion.jsonl` 导入真实发送脉冲→有效停车后扫描窗口→可靠实测运动的证据，不能继承仅请求的速度。历史任务整体失败不等于其中起转没有成功，也不据此宣告任务已完成。历史证据保留原时间，超过七天不继承；其他情况从本轮反馈学习。文件原子保存，绑定适配器/标定/车体掩膜版本、底盘连接身份及轮平衡；过期、损坏或绑定变化时不复用。部署不会覆盖此运行文件。
 
 新增日志 `navigation_angular_progress`、`turn_experience_loaded/learned/reused/disabled`、`turn_experience_history_imported`；沿用每轮 `phase1_motion.jsonl`。启动命令不变。本次321项软件测试通过（含历史转向时XY不前进、错误方向/抖动不延时、跨启动读写、证据失配/过期拒绝、地面改变回退）。仅部署、不自动启动实车；尚需现场验证任务耗时及到达/识别效果，不能保证所有物理摩擦变化都已解决。
 
@@ -441,7 +441,7 @@
 
 人工标定静止预检最多采30帧，要求连续5帧净空合格；每一帧不合格都重置计数，原始回波全部保留，不扩大车体掩膜。此等待不连接底盘，不过滤近障碍；运动前新扫描及运动中检查仍保留。
 
-人工标定结果：树莓派 `/home/dachuang/dachuang/car1.0/search_runs/phase1/turn_calibration_20260927_152449/raw_rotation.json` 保存完整前后扫描、发送参数、ACK延迟和停车后10帧复核。单次-3500mrad/s、180ms、轮增益 `[1.5,1.30435,1.17391,1.30435]`，停车后估计右转2.69..3.23°（中位2.85°），10/10原始双向回波校验通过，现场用户确认车体小幅转动。电池状态返回0，表示不能据此判断真实电量。
+人工标定结果：树莓派 `/home/robot/dachuang/car1.0/search_runs/phase1/turn_calibration_20260927_152449/raw_rotation.json` 保存完整前后扫描、发送参数、ACK延迟和停车后10帧复核。单次-3500mrad/s、180ms、轮增益 `[1.5,1.30435,1.17391,1.30435]`，停车后估计右转2.69..3.23°（中位2.85°），10/10原始双向回波校验通过，现场用户确认车体小幅转动。电池状态返回0，表示不能据此判断真实电量。
 
 左转标定：同目录 `turn_calibration_left_20260927_153634/raw_rotation.json`，相同180ms、+3500mrad/s和轮增益，停车后左转3.88..4.59°（中位4.37°），10/10原始回波验证通过，现场用户确认正常左转。左右不能假设同一摩擦响应。
 
@@ -589,7 +589,7 @@ ACK失败不泄漏增强配置及旧固件接口适配。部署不启动小车�
 启动方法不变（须人在现场看护并可急停；不由部署脚本自动运行）：
 
 ```bash
-cd /home/dachuang/dachuang/car1.0
+cd /home/robot/dachuang/car1.0
 bash ble_scene_17_relationship_20260919/grasp_range_integration/phase1/run_phase1_find_only.sh \
   search_runs/phase1/latest_deepseek_decision.json \
   --execute-find-only
@@ -659,7 +659,7 @@ bash ble_scene_17_relationship_20260919/grasp_range_integration/phase1/run_phase
 这次不自动试车、不自动倒车、不把照片猜成精确墙线。
 
 树莓派配置模板：
-`/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/glass_boundaries.json`。
+`/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/phase1/glass_boundaries.json`。
 建议另存为 `glass_boundaries.local.json` 并用环境变量 `PHASE1_GLASS_BOUNDARIES` 指定，
 避免后续部署模板覆盖现场填写的数据。该变量只选择配置，不取消核验。
 
@@ -672,7 +672,7 @@ bash ble_scene_17_relationship_20260919/grasp_range_integration/phase1/run_phase
 核验配置的命令（不会打开硬件）：
 
 ```bash
-cd /home/dachuang/dachuang/car1.0
+cd /home/robot/dachuang/car1.0
 release=ble_scene_17_relationship_20260919
 sha256sum "$release/ble_scene_17.pgm" "$release/ble_scene_17.yaml"
 PYTHONPATH="$release:." .venv-pi/bin/python3 -m grasp_range_integration.phase1.glass_boundary_guard \
@@ -817,12 +817,12 @@ PYTHONPATH="$release:." .venv-pi/bin/python3 -m grasp_range_integration.phase1.g
 修好了不同拒绝原因共用计数导致单帧立即退出的问题，但不能宣布该点已被证明是车体。
 转动后严格原始回波不一致及最终转角控制仍需后续校准，不通过降低碰撞保护来解决。
 
-树莓派部署位置为 `/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/`。
+树莓派部署位置为 `/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919/grasp_range_integration/`。
 部署时间、逐文件 SHA256 和旧版备份位置见本目录 `DEPLOYMENT_RECORD.json`；部署工具只更新
 第一阶段适配层和文档/测试，不启动相机、雷达、底盘或机械臂，也不修改受保护源码。
 
 2026-09-26 相机启动检查已写入 `phase1/run_phase1_find_only.sh`：先获得任务锁，检查
-摄像头存在、权限及左右设备不同，再释放当前用户的已知 `/home/dachuang/grab_visual/web_app.py`
+摄像头存在、权限及左右设备不同，再释放当前用户的已知 `/home/robot/grab_visual/web_app.py`
 预览及其 ffmpeg 子进程（8080 预览关闭）。不强杀其他程序；残留占用会列出 PID 并拒绝启动。
 优先按 USB 口稳定路径绑定 LEFT=口2、RIGHT=口1，缺少稳定链接才回退 video2/video0。
 不使用 by-id 自动排序，因为两相机序列号重复；换USB口或移动相机后必须重新确认左右契约。
@@ -1039,11 +1039,11 @@ TTL或转速。反馈等待至ACK时刻+TTL+50毫秒后开始的新完整扫描�
 后续安装复核可在确认没有任务占用雷达时，使用新的、尚不存在的文件名执行纯静止采样：
 
 ```bash
-cd /home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919
-PYTHONPATH="$PWD:/home/dachuang/dachuang/car1.0" \
-  /home/dachuang/dachuang/car1.0/.venv-pi/bin/python3 \
+cd /home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919
+PYTHONPATH="$PWD:/home/robot/dachuang/car1.0" \
+  /home/robot/dachuang/car1.0/.venv-pi/bin/python3 \
   -m grasp_range_integration.phase1.inspect_body_returns \
-  --output /home/dachuang/dachuang/car1.0/search_runs/body_mask_audit_NEW.json
+  --output /home/robot/dachuang/car1.0/search_runs/body_mask_audit_NEW.json
 ```
 
 本轮只进行软件测试和原始数据回放、部署；没有启动寻物或发送运动命令，不声称实车已恢复。
@@ -1160,7 +1160,7 @@ grasp_range_integration/phase1/
 规划时沿用已经填写的配置，不读取或打印密钥：
 
 ```text
-/home/dachuang/dachuang/car1.0/secrets/deepseek_vision.json
+/home/robot/dachuang/car1.0/secrets/deepseek_vision.json
 ```
 
 也提供了字段模板 `grasp_range_integration/config/deepseek_phase1.example.json`。规划命令是：
@@ -1261,10 +1261,10 @@ python3 -m unittest \
 
 ### 1.2 2026-09-20 实机核验状态
 
-- 树莓派正式发布目录：`/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919`。
-- 3090 语义发布目录：`/home/sjtu/semantic_map_packages/ble_scene_17_relationship_20260919`。
-- 3090 的 8011 感知服务已改为回调当前树莓派 `http://172.18.3.139:8770`；IP 再变化时必须先更新服务参数。
-- 树莓派蓝牙扫描能看到 `ESP32-Robot-Car (64:B7:08:69:9A:E6)`；一次扫描成功不等于后续连接永远成功，执行前仍需重新做连接门检。
+- 树莓派正式发布目录：`/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919`。
+- 3090 语义发布目录：`/home/gpu/semantic_map_packages/ble_scene_17_relationship_20260919`。
+- 3090 的 8011 感知服务已改为回调当前树莓派 `http://192.0.2.12:8770`；IP 再变化时必须先更新服务参数。
+- 树莓派蓝牙扫描能看到 `ESP32-Robot-Car (AA:BB:CC:DD:EE:01)`；一次扫描成功不等于后续连接永远成功，执行前仍需重新做连接门检。
 - 3090 的独立 8022 夹取模型在线，当前**只训练了“红色小物块”**：30 个样本、30 个凸包点，测试 MAE 为 `s0=19.04`、`s1=20.23`、`s2=14.93`（单位为舵机脉宽）。
 - 8022 只负责“双摄目标中心 -> 三轴绝对脉宽”预测，不能替代小车的米制测距、目标前方规定范围控制或夹取成功复核。
 
@@ -1284,7 +1284,7 @@ grasp_range_integration/
 ```bash
 python3 -m grasp_range_integration.model_predict_dry_run \
   --camera-stream http://127.0.0.1:8080 \
-  --model-url http://192.168.55.33:8022 \
+  --model-url http://192.0.2.20:8022 \
   --target 红色小物块 \
   --save-stitched grasp_range_integration/runs/latest_stitched.jpg \
   --report grasp_range_integration/runs/latest_prediction.json
@@ -1505,7 +1505,7 @@ search_runs/ble_scene_17/<时间>/
 | 3090 模型配置 | `3090/configs/linux_3090_remote.yaml` | 模型路径、CUDA、阈值、CSRT、YOLO 安全区等 | 只读 |
 | 模型加载/任务解析 | `semantic_task_planner.py`、`search_task_planner.py` | 加载 Qwen 并把输出经过确定性安全编译 | 只读 |
 | 目标框选模型代码 | `grounding/qwen_grounder.py` | 视觉提示词、模型推理与框输出 | 只读 |
-| 独立夹取模型服务 | 3090 `/home/sjtu/grab_visual/arm_teach_artifacts/model.pt`、`model_state.json`；HTTP `:8022` | 双摄拼接图经 Qwen 得到左右中心，凸包内才由 MLP 输出 `s0/s1/s2` | 只读；当前仅“红色小物块” |
+| 独立夹取模型服务 | 3090 `/home/gpu/grab_visual/arm_teach_artifacts/model.pt`、`model_state.json`；HTTP `:8022` | 双摄拼接图经 Qwen 得到左右中心，凸包内才由 MLP 输出 `s0/s1/s2` | 只读；当前仅“红色小物块” |
 | 旧夹取执行参考 | 工作区 `test/arm_teach.py`、`test/arm_teach_pi.py` | 已验证的 `#ARMG{s0}{s1}{s2}!` ASCII 序列和示教页面 | 冻结参考，不得原地修改 |
 | 本次只预测适配 | `grasp_range_integration/model_predict_dry_run.py` | 校验目标名、双摄、凸包和脉宽范围，写 JSON 报告 | 新增；不发硬件命令 |
 

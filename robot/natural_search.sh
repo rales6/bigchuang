@@ -17,7 +17,7 @@ fi
 
 python3 -u -m raspberry_pi.submit_search_command \
   "${submit_args[@]}" \
-  --3090-url "${SEARCH_3090_URL:-http://192.168.55.33:8011}" \
+  --3090-url "${SEARCH_3090_URL:-http://192.0.2.20:8011}" \
   --output "$decision"
 
 python3 - "$decision" "$expected_class" "$expected_mode" <<'PY'

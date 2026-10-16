@@ -31,7 +31,7 @@ def main():
     receipt = ROOT/'simulation_runs'/('panorama_escape_limit_removal_deployment_'+stamp+'.json')
     report = {'deployed':False,'robot_started':False,'backup':backup,
               'unit_tests':manifest['unit_tests'],'full_disturbance_acceptance':False}
-    client = connect('dachuang.local',22,'dachuang',os.environ['PI_SSH_PASSWORD'])
+    client = connect('pi.example.invalid',22,'dachuang',os.environ['PI_SSH_PASSWORD'])
     try:
         active = json.loads(python(client,'python3',ACTIVE_CHECK))
         if active:

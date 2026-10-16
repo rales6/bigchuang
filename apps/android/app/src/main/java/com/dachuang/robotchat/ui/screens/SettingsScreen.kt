@@ -554,7 +554,7 @@ private fun ConnectionPage(
                         value = baseUrl,
                         onValueChange = { baseUrl = it },
                         label = { Text("服务地址") },
-                        supportingText = { Text("示例：http://192.168.1.100:8000") },
+                        supportingText = { Text("示例：http://192.0.2.100:8000") },
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         singleLine = true,
                     )

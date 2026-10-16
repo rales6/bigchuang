@@ -2,7 +2,7 @@
 
 本轮按 `panorama_false_obstacle_fix_plan_20260917.md` 的优先范围实施，不调整定位、速度、站点间距、脱困上限或覆盖结束条件；仅本地修改，未部署、未启动实车。
 
-后续部署记录：2026-09-17 18:42 已按用户要求部署到树莓派，更新 `map_camera_inspection.py` 与 `open_space_panorama.py`。部署前无活动运动任务，编译/文件哈希/只读自检通过，原地图哈希不变，未启动硬件。备份位于 `/home/dachuang/dachuang/car1.0/backups/inspection_route_20260917_184256`。以下整圈仿真失败限制仍然有效。
+后续部署记录：2026-09-17 18:42 已按用户要求部署到树莓派，更新 `map_camera_inspection.py` 与 `open_space_panorama.py`。部署前无活动运动任务，编译/文件哈希/只读自检通过，原地图哈希不变，未启动硬件。备份位于 `/home/robot/dachuang/car1.0/backups/inspection_route_20260917_184256`。以下整圈仿真失败限制仍然有效。
 
 ## 已修改
 

@@ -19,8 +19,8 @@ from grasp_range_integration.tools.deploy_phase1_observation import protected_ha
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'grasp_range_integration/track_web_integration/pi'
-TRACK = '/home/dachuang/dachuang/track'
-GRAB = '/home/dachuang/grab_visual'
+TRACK = '/home/robot/dachuang/track'
+GRAB = '/home/robot/grab_visual'
 ARM_HASH = '545786dc33865efb5b57c0fcdd582159634d14c198b4de87f3a2af72a14b2a63'
 EXPECTED = {
     TRACK+'/final_work/pi/robot_skills.py': '9bd9091afa5d8a162a09eae973c389a5c2fd2dd26395a947bba027d061e88b92',
@@ -93,7 +93,7 @@ spec.loader.exec_module(module); suite.addTests(unittest.defaultTestLoader.loadT
 result=unittest.TextTestRunner(verbosity=1).run(suite)
 if not result.wasSuccessful():raise SystemExit(1)
 # Execute just the actual deployed grasp function with FAKE arm methods.
-arm_tree=ast.parse(Path('/home/dachuang/grab_visual/arm_teach.py').read_text())
+arm_tree=ast.parse(Path('/home/robot/grab_visual/arm_teach.py').read_text())
 nodes=[n for n in arm_tree.body if isinstance(n,ast.FunctionDef) and n.name in
  ('_s2_preclose_nudge_target','_run_grasp_sequence')]
 assert len(nodes)==2
@@ -105,7 +105,7 @@ ns={'SERVOS':servos,'SERVO_KEYS':('s0','s1','s2'),'_state_lock':threading.RLock(
  'send_home':lambda *a:calls.append(('home',None)) or 'OK',
  'send_grasp_pose':lambda send,p:calls.append(('pose',dict(p))),
  'send_claw':lambda send,p:calls.append(('claw',p))}
-sys.path.insert(0,'/home/dachuang/grab_visual')
+sys.path.insert(0,'/home/robot/grab_visual')
 exec(compile(ast.Module(body=nodes,type_ignores=[]),'deployed_grasp_function','exec'),ns)
 with patch.dict('os.environ',{'ARM_GRASP_S0_NUDGE_US':'-30','ARM_GRASP_S2_NUDGE_US':'-20'}):
  ns['_run_grasp_sequence'](lambda *a:'OK',{'s0':1410,'s1':969,'s2':1720})
@@ -192,7 +192,7 @@ def main():
             if protected_hashes(s) != protected or any(sha(_read(s,p)) != digest for p,digest in frozen.items()):
                 raise RuntimeError('Protected core changed')
             if _read(s,ledger_path) != ledger: raise RuntimeError('Carry ledger changed')
-        env = 'PYTHONPATH='+shlex.quote(TRACK+':'+GRAB+':/home/dachuang/dachuang/car1.0/ble_scene_17_relationship_20260919:/home/dachuang/dachuang/car1.0')
+        env = 'PYTHONPATH='+shlex.quote(TRACK+':'+GRAB+':/home/robot/dachuang/car1.0/ble_scene_17_relationship_20260919:/home/robot/dachuang/car1.0')
         output = _remote(client, env+' '+HOSTS['pi']['python']+' -c '+shlex.quote(REMOTE_TEST)+' '+
                          shlex.quote(backup+'/test_robot_skills.py')+' '+shlex.quote(backup+'/test_grasp_pose_correction.py'))
         print(output)

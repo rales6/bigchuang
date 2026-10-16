@@ -2059,7 +2059,7 @@ class AutonomousMappingTest(unittest.TestCase):
 
             def start(self):
                 self.started += 1
-                return "http://192.168.1.10:8766"
+                return "http://192.0.2.14:8766"
 
             def publish(self, slam, status, force=False):
                 self.published.append((slam, status, force))

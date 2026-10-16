@@ -16,5 +16,6 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r requirements/dev.txt
       - run: python tools/project.py check
+      - run: python -m tools.maintenance.public_hygiene
       - run: python tools/project.py test --suite smoke
       - run: python tools/project.py test --suite regression

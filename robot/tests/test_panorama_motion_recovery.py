@@ -110,6 +110,7 @@ class PanoramaRecoveryTests(unittest.TestCase):
             repeated = _filter_body_returns(scan, .19, config.lidar_offset_x_m, 0., .125)
             np.testing.assert_equal(repeated.distances_m, filtered.distances_m)
 
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def field_scan(self):
         fixture = json.loads((Path(__file__).parent / 'fixtures' /
                               'panorama_body_return_20260917_154320.json').read_text())

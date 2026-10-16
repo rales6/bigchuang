@@ -27,7 +27,7 @@ from .pursuit_recovery import (LossRecoveryBudget, identified_loss_run,
 from .camera_proxy import camera_environment
 
 
-TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/dachuang/dachuang/track"))
+TRACK_ROOT = Path(os.environ.get("FINAL_WORK_TRACK_ROOT", "/home/robot/dachuang/track"))
 
 
 def _target_from_args(args: list[str]) -> str:

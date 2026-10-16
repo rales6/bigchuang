@@ -65,7 +65,7 @@ def main():
         for i,(side,target,old,new) in enumerate(prepared):
             if target.endswith('.sh'):_remote(clients[side],'bash -n '+shlex.quote(backups[side]+f'/{i}.staged'))
         idle(clients['pi'])
-        _remote(clients['gpu'],'bash /home/sjtu/track/final_work/stop_3090.sh');stopped.append('gpu')
+        _remote(clients['gpu'],'bash /home/gpu/track/final_work/stop_3090.sh');stopped.append('gpu')
         _remote(clients['pi'],'sudo -n systemctl stop final-work-pi-bridge.service');stopped.append('pi')
         for i,(side,target,old,new) in enumerate(prepared):
             with clients[side].open_sftp() as s:
@@ -83,7 +83,7 @@ def main():
         code='''import importlib,sys,types,unittest
 parent=types.ModuleType('grasp_range_integration.track_web_integration');parent.__path__=[]
 sys.modules[parent.__name__]=parent
-pi=types.ModuleType(parent.__name__+'.pi');pi.__path__=['/home/dachuang/dachuang/track/final_work/pi']
+pi=types.ModuleType(parent.__name__+'.pi');pi.__path__=['/home/robot/dachuang/track/final_work/pi']
 sys.modules[pi.__name__]=pi
 gpu=types.ModuleType(parent.__name__+'.gpu');gpu.__path__=[sys.argv[1]]
 sys.modules[gpu.__name__]=gpu
@@ -100,13 +100,13 @@ sys.exit(0 if result.wasSuccessful() else 1)
                      prefix+' -m unittest grasp_range_integration.tests.'+name+' -q')
             output=_remote(clients['pi'],command)
             print(output.strip(),flush=True);results.append(output.strip())
-        _remote(clients['gpu'],'cd /home/sjtu/track && PYTHONPATH=/home/sjtu/track '+
+        _remote(clients['gpu'],'cd /home/gpu/track && PYTHONPATH=/home/gpu/track '+
                 shlex.quote(HOSTS['gpu']['python'])+" -c 'import final_work.gpu.app;print(\"GPU_APP_IMPORT_OK\")'")
         with clients['pi'].open_sftp() as s:
             if protected_hashes(s)!=protected:raise RuntimeError('Protected core changed')
         _remote(clients['pi'],'sudo -n systemctl start final-work-pi-bridge.service')
         _remote(clients['pi'],'sudo -n systemctl start final-work-pi-tunnel.service')
-        _remote(clients['gpu'],'bash /home/sjtu/track/final_work/run_3090_background.sh')
+        _remote(clients['gpu'],'bash /home/gpu/track/final_work/run_3090_background.sh')
         _remote(clients['pi'],'systemctl is-active final-work-pi-bridge.service final-work-pi-tunnel.service')
         # Health/read-only status checks never call recording/start or a task.
         _remote(clients['pi'],'curl --retry 6 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8780/health >/dev/null')
@@ -126,7 +126,7 @@ sys.exit(0 if result.wasSuccessful() else 1)
         if 'pi' in stopped:
             _remote(clients['pi'],'sudo -n systemctl start final-work-pi-bridge.service')
             _remote(clients['pi'],'sudo -n systemctl start final-work-pi-tunnel.service')
-        if 'gpu' in stopped:_remote(clients['gpu'],'bash /home/sjtu/track/final_work/run_3090_background.sh')
+        if 'gpu' in stopped:_remote(clients['gpu'],'bash /home/gpu/track/final_work/run_3090_background.sh')
         raise
     finally:
         for c in clients.values():c.close()

@@ -109,7 +109,7 @@ def main() -> int:
     parser.add_argument(
         "--origin",
         action="append",
-        default=["http://192.168.55.33:8030"],
+        default=["http://192.0.2.20:8030"],
         help="Allowed robot UI origin; repeat for more origins",
     )
     args = parser.parse_args()

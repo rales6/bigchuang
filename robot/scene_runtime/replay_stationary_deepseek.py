@@ -29,7 +29,7 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=Path(
         os.environ.get(
             "DEEPSEEK_VISION_CONFIG",
-            "/home/dachuang/dachuang/car1.0/secrets/deepseek_vision.json",
+            "/home/robot/dachuang/car1.0/secrets/deepseek_vision.json",
         )
     ))
     args = parser.parse_args()

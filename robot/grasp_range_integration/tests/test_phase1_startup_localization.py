@@ -21,6 +21,7 @@ FIXTURE = Path(__file__).parent / 'fixtures/startup_stationary_20260926.json'
 
 class StartupReplayTests(unittest.TestCase):
     @classmethod
+    @unittest.skipUnless((Path(__file__).parent / "fixtures").is_dir(), "Requires private recording bundle")
     def setUpClass(cls):
         data = json.loads(FIXTURE.read_text(encoding='utf-8'))
         assert data['hardware_motion_commands'] == 0 and data['offline_replay_only']

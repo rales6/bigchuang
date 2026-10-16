@@ -12,10 +12,10 @@ from grasp_range_integration.tools.deploy_phase1_observation import protected_ha
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE=ROOT/'grasp_range_integration/track_web_integration'
 FILES=[
- ('pi','pi/robot_skills.py','/home/dachuang/dachuang/track/final_work/pi/robot_skills.py','f6247a6627d5b3dc25c8fcc5f6b633341f7c8233835f7a5a755b4c93e1401d59'),
- ('pi','pi/robot_bridge.py','/home/dachuang/dachuang/track/final_work/pi/robot_bridge.py','9c3d0299d6c3b3d280f47b832cbe9eed523a04e54da57efcd52742fdd5f9f73b'),
- ('gpu','gpu/app.py','/home/sjtu/track/final_work/gpu/app.py','01c5240688dc31df1cdb5b3afdfeb9346594859bdcbd39bce7c359a24e501959'),
- ('gpu','static/empty-gripper.js','/home/sjtu/track/final_work/static/empty-gripper.js',None),
+ ('pi','pi/robot_skills.py','/home/robot/dachuang/track/final_work/pi/robot_skills.py','f6247a6627d5b3dc25c8fcc5f6b633341f7c8233835f7a5a755b4c93e1401d59'),
+ ('pi','pi/robot_bridge.py','/home/robot/dachuang/track/final_work/pi/robot_bridge.py','9c3d0299d6c3b3d280f47b832cbe9eed523a04e54da57efcd52742fdd5f9f73b'),
+ ('gpu','gpu/app.py','/home/gpu/track/final_work/gpu/app.py','01c5240688dc31df1cdb5b3afdfeb9346594859bdcbd39bce7c359a24e501959'),
+ ('gpu','static/empty-gripper.js','/home/gpu/track/final_work/static/empty-gripper.js',None),
 ]
 
 
@@ -32,7 +32,7 @@ def main():
         prepared=[]
         with clients['pi'].open_sftp() as s:
             before=protected_hashes(s)
-            ledger=_read(s,'/home/dachuang/dachuang/track/final_work/data/robot_skills_state.json')
+            ledger=_read(s,'/home/robot/dachuang/track/final_work/data/robot_skills_state.json')
         for side,name,destination,expected in FILES:
             with clients[side].open_sftp() as s:
                 try:old=_read(s,destination)
@@ -53,7 +53,7 @@ def main():
                     with s.open(report['backups'][side]+f'/{i}.old','wb') as f:f.write(old)
                 with s.open(report['backups'][side]+f'/{i}.staged','wb') as f:f.write(desired)
         idle(clients['pi'])
-        _remote(clients['gpu'],'bash /home/sjtu/track/final_work/stop_3090.sh')
+        _remote(clients['gpu'],'bash /home/gpu/track/final_work/stop_3090.sh')
         stopped.append('gpu')
         # Earlier deployments had stale PID files. Require the actual HTTP
         # listener to exit; target only the verified final_work web process.
@@ -82,7 +82,7 @@ for p in Path('/proc').iterdir():
         with clients['pi'].open_sftp() as s:
             if protected_hashes(s)!=before:raise RuntimeError('Protected core changed')
         _remote(clients['pi'],'sudo -n systemctl start final-work-pi-bridge.service final-work-pi-tunnel.service')
-        _remote(clients['gpu'],'bash /home/sjtu/track/final_work/run_3090_background.sh')
+        _remote(clients['gpu'],'bash /home/gpu/track/final_work/run_3090_background.sh')
         _remote(clients['pi'],'curl --retry 6 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8780/health >/dev/null')
         _remote(clients['gpu'],'curl --retry 6 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8030/api/conversations >/dev/null')
         stopped.clear()
@@ -99,7 +99,7 @@ for p in Path('/proc').iterdir():
                     with s.open(staged,'wb') as f:f.write(old)
                     s.chmod(staged,0o644);s.posix_rename(staged,destination)
         if 'pi' in stopped:_remote(clients['pi'],'sudo -n systemctl start final-work-pi-bridge.service final-work-pi-tunnel.service')
-        if 'gpu' in stopped:_remote(clients['gpu'],'bash /home/sjtu/track/final_work/run_3090_background.sh')
+        if 'gpu' in stopped:_remote(clients['gpu'],'bash /home/gpu/track/final_work/run_3090_background.sh')
         raise
     finally:
         for c in clients.values():c.close()

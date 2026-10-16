@@ -31,4 +31,4 @@ robot-car/
 
 `robot/grasp_range_integration/track_web_integration` 是原适配层的兼容开发路径；`services/track/final_work` 是实际运行路径镜像。同步来源明确记录；不要只改其中一份就声称已在服务生效。后续如统一部署，应先用发布清单消除重复，不依赖手动复制。
 
-设备上的 `/home/dachuang/dachuang/car1.0`、`/home/dachuang/dachuang/track`、`/home/dachuang/grab_visual` 和 3090 路径没有改动。新的电脑目录不是已经部署好的设备根目录，不能整目录覆盖设备。真实启动、依赖以及相机顺序按组件原说明，配置通过本地环境文件传入。
+设备上的 `/home/robot/dachuang/car1.0`、`/home/robot/dachuang/track`、`/home/robot/grab_visual` 和 3090 路径没有改动。新的电脑目录不是已经部署好的设备根目录，不能整目录覆盖设备。真实启动、依赖以及相机顺序按组件原说明，配置通过本地环境文件传入。

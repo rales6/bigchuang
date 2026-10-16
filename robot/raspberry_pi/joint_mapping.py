@@ -248,7 +248,7 @@ def build_parser():
     parser.description = "联合建图与视点标注：启动点局部坐标，旧图只读参考"
     parser.add_argument("--session-root", default="mapping_sessions")
     parser.add_argument("--coarse-map", default="maps/ble_scene_17.pgm")
-    parser.add_argument("--annotation-url", default="http://192.168.55.33:8010")
+    parser.add_argument("--annotation-url", default="http://192.0.2.20:8010")
     parser.add_argument("--photo-spacing", type=float, default=0.65)
     parser.add_argument("--photo-angle", type=float, default=55)
     parser.add_argument("--camera-device", type=int, default=0)

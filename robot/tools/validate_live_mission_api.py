@@ -9,7 +9,7 @@ import paramiko
 def main():
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect("202.121.181.124", port=2020, username="sjtu", password=os.environ["RTX_SSH_PASSWORD"], timeout=45, auth_timeout=45, banner_timeout=45)
+    c.connect("198.51.100.20", port=2020, username="sjtu", password=os.environ["RTX_SSH_PASSWORD"], timeout=45, auth_timeout=45, banner_timeout=45)
     commands = [
         "去柜子边上找一个红色瓶子",
         "去马路上找一个红色物体",
